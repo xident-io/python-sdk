@@ -6,9 +6,7 @@ Contains TypedDicts for API parameters and the SessionStatus enum.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
-
-from typing_extensions import TypedDict
+from typing import Optional, TypedDict
 
 
 class SessionStatus(str, Enum):
