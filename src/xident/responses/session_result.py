@@ -32,7 +32,6 @@ class SessionResult:
         country_code: ISO 3166-1 alpha-2 country code, or None.
         regime: Applied verification regime, or None.
         min_age: Required minimum age threshold, or None.
-        purpose: Verification purpose string, or None.
         external_user_id: Your application's user identifier, or None.
         required_methods: List of required verification methods, or None.
         remaining_attempts: Number of remaining retry attempts, or None.
@@ -52,7 +51,6 @@ class SessionResult:
     country_code: str | None = None
     regime: str | None = None
     min_age: int | None = None
-    purpose: str | None = None
     external_user_id: str | None = None
     required_methods: list[str] | None = field(default=None)
     remaining_attempts: int | None = None
@@ -122,7 +120,6 @@ class SessionResult:
             country_code=data.get("country_code"),
             regime=data.get("regime"),
             min_age=int(min_age_raw) if min_age_raw is not None else None,
-            purpose=data.get("purpose"),
             external_user_id=data.get("external_user_id"),
             required_methods=data.get("required_methods"),
             remaining_attempts=int(remaining_raw) if remaining_raw is not None else None,

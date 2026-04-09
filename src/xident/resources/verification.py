@@ -38,8 +38,6 @@ class Verification:
         theme: str | None = None,
         locale: str | None = None,
         metadata: str | None = None,
-        liveness_difficulty: str | None = None,
-        purpose: str | None = None,
     ) -> InitResult:
         """Create an init token for starting a verification session.
 
@@ -55,8 +53,6 @@ class Verification:
             theme: Widget theme ("light", "dark", "auto").
             locale: Widget locale (e.g. "en", "de", "fr").
             metadata: Opaque string stored with the session.
-            liveness_difficulty: Challenge difficulty ("easy", "medium", "hard").
-            purpose: Verification purpose string.
 
         Returns:
             InitResult with token and verify_url.
@@ -74,8 +70,6 @@ class Verification:
             theme=theme,
             locale=locale,
             metadata=metadata,
-            liveness_difficulty=liveness_difficulty,
-            purpose=purpose,
         )
         data = self._http.post("/init", body=body)
         return InitResult.from_dict(data)
@@ -99,7 +93,7 @@ class Verification:
         """
         if not token:
             raise ValueError("Token cannot be empty")
-        data = self._http.get(f"/status/{quote(token, safe='')}")
+        data = self._http.get(f"/result/{quote(token, safe='')}")
         return SessionResult.from_dict(data)
 
     @staticmethod
@@ -132,8 +126,6 @@ class AsyncVerification:
         theme: str | None = None,
         locale: str | None = None,
         metadata: str | None = None,
-        liveness_difficulty: str | None = None,
-        purpose: str | None = None,
     ) -> InitResult:
         """Create an init token for starting a verification session (async).
 
@@ -149,8 +141,6 @@ class AsyncVerification:
             theme: Widget theme ("light", "dark", "auto").
             locale: Widget locale (e.g. "en", "de", "fr").
             metadata: Opaque string stored with the session.
-            liveness_difficulty: Challenge difficulty ("easy", "medium", "hard").
-            purpose: Verification purpose string.
 
         Returns:
             InitResult with token and verify_url.
@@ -168,8 +158,6 @@ class AsyncVerification:
             theme=theme,
             locale=locale,
             metadata=metadata,
-            liveness_difficulty=liveness_difficulty,
-            purpose=purpose,
         )
         data = await self._http.post("/init", body=body)
         return InitResult.from_dict(data)
@@ -193,5 +181,5 @@ class AsyncVerification:
         """
         if not token:
             raise ValueError("Token cannot be empty")
-        data = await self._http.get(f"/status/{quote(token, safe='')}")
+        data = await self._http.get(f"/result/{quote(token, safe='')}")
         return SessionResult.from_dict(data)

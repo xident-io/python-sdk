@@ -48,8 +48,6 @@ class InitParams(TypedDict, total=False):
         theme: Widget theme ("light", "dark", "auto").
         locale: Widget locale (e.g. "en", "de", "fr").
         metadata: Opaque string stored with the session.
-        liveness_difficulty: Challenge difficulty ("easy", "medium", "hard").
-        purpose: Verification purpose string.
     """
 
     callback_url: str
@@ -60,8 +58,6 @@ class InitParams(TypedDict, total=False):
     theme: str
     locale: str
     metadata: str
-    liveness_difficulty: str
-    purpose: str
 
 
 class _APIResponseData(TypedDict, total=False):

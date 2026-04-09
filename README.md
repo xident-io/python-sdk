@@ -1,6 +1,6 @@
 # Xident Python SDK
 
-Official Python SDK for [Xident](https://xident.io) age and identity verification.
+Official Python SDK for [Xident](https://xident.io) age and identity verification. Try it live at [demo.xident.io](https://demo.xident.io).
 
 [![PyPI version](https://img.shields.io/pypi/v/xident.svg)](https://pypi.org/project/xident/)
 [![Python versions](https://img.shields.io/pypi/pyversions/xident.svg)](https://pypi.org/project/xident/)

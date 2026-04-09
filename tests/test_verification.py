@@ -68,14 +68,12 @@ class TestVerification:
             theme="light",
             locale="de",
             metadata="custom_data",
-            liveness_difficulty="hard",
-            purpose="adult_content",
         )
 
         req = mock_transport.last_request
         assert req is not None
         body = json.loads(req.content)
-        assert len(body) == 10  # All params present
+        assert len(body) == 8  # All params present
 
     def test_get_result_returns_session(self, mock_transport: MockTransport) -> None:
         mock_transport.queue_success(

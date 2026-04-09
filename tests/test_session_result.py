@@ -52,7 +52,6 @@ class TestSessionResult:
             "country_code": "DE",
             "regime": "medium",
             "min_age": 18,
-            "purpose": "adult_content",
             "external_user_id": "user_42",
             "required_methods": ["liveness", "age"],
             "remaining_attempts": 2,
@@ -73,7 +72,6 @@ class TestSessionResult:
         assert result.country_code == "DE"
         assert result.regime == "medium"
         assert result.min_age == 18
-        assert result.purpose == "adult_content"
         assert result.external_user_id == "user_42"
         assert result.required_methods == ["liveness", "age"]
         assert result.remaining_attempts == 2

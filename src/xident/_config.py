@@ -11,7 +11,7 @@ import sys
 from dataclasses import dataclass
 
 
-DEFAULT_BASE_URL = "http://localhost:9000"
+DEFAULT_BASE_URL = "https://api.xident.io"
 DEFAULT_TIMEOUT = 30
 DEFAULT_MAX_RETRIES = 3
 API_VERSION = "verify/v1"
@@ -24,7 +24,7 @@ class Config:
 
     Attributes:
         api_key: Your Xident secret API key (sk_live_xxx or sk_test_xxx).
-        base_url: API base URL (default: http://localhost:9000).
+        base_url: API base URL (default: https://api.xident.io).
         timeout: Request timeout in seconds (default: 30).
         max_retries: Max retries on 5xx errors (default: 3).
         headers: Extra headers to send with every request.
