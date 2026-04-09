@@ -39,6 +39,15 @@ class Config:
     def __post_init__(self) -> None:
         if not self.api_key:
             raise ValueError("API key cannot be empty")
+        if self.api_key.startswith("pk_"):
+            raise ValueError(
+                "Public keys (pk_*) cannot be used with the server SDK. "
+                "Use your secret key (sk_live_* or sk_test_*)."
+            )
+        if not self.api_key.startswith("sk_live_") and not self.api_key.startswith("sk_test_"):
+            raise ValueError(
+                'Invalid API key format. Must start with "sk_live_" or "sk_test_".'
+            )
         # Strip trailing slash from base_url
         object.__setattr__(self, "base_url", self.base_url.rstrip("/"))
         # Clamp timeout to at least 1

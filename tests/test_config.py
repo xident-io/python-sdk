@@ -72,6 +72,22 @@ class TestConfig:
         with pytest.raises(AttributeError):
             config.base_url = "changed"  # type: ignore[misc]
 
+    def test_rejects_public_key(self) -> None:
+        with pytest.raises(ValueError, match="Public keys"):
+            Config(api_key="pk_live_abc123")
+
+    def test_rejects_invalid_format(self) -> None:
+        with pytest.raises(ValueError, match="format"):
+            Config(api_key="random-key-123")
+
+    def test_accepts_sk_live_key(self) -> None:
+        config = Config(api_key="sk_live_abc123")
+        assert config.api_key == "sk_live_abc123"
+
+    def test_accepts_sk_test_key(self) -> None:
+        config = Config(api_key="sk_test_abc123")
+        assert config.api_key == "sk_test_abc123"
+
     def test_sdk_version_is_string(self) -> None:
         assert isinstance(SDK_VERSION, str)
         assert len(SDK_VERSION) > 0
