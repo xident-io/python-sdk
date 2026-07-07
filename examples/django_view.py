@@ -37,7 +37,7 @@ def start_verification(request: HttpRequest) -> HttpResponse:
             callback_url=callback_url,
             min_age=18,
             user_id=str(request.user.pk) if request.user.is_authenticated else None,
-            theme="auto",
+            theme="system",
         )
         return redirect(result.verify_url)
     except XidentError:

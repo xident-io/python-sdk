@@ -38,6 +38,7 @@ class Verification:
         theme: str | None = None,
         locale: str | None = None,
         metadata: str | None = None,
+        purpose: str | None = None,
     ) -> InitResult:
         """Create an init token for starting a verification session.
 
@@ -46,13 +47,15 @@ class Verification:
 
         Args:
             callback_url: URL where user is redirected after verification.
-            min_age: Minimum age threshold (12, 15, 18, 21, 25).
+            min_age: Minimum age threshold (1-99). When ``purpose`` is
+                "id_verification", 0 is also accepted (identity-only, no age gate).
             success_url: Override redirect URL on success.
             failed_url: Override redirect URL on failure.
             user_id: Your application's user identifier.
-            theme: Widget theme ("light", "dark", "auto").
+            theme: Widget theme ("light", "dark", "system").
             locale: Widget locale (e.g. "en", "de", "fr").
             metadata: Opaque string stored with the session.
+            purpose: Verification purpose ("age_verification" or "id_verification").
 
         Returns:
             InitResult with token and verify_url.
@@ -70,6 +73,7 @@ class Verification:
             theme=theme,
             locale=locale,
             metadata=metadata,
+            purpose=purpose,
         )
         data = self._http.post("/init", body=body)
         return InitResult.from_dict(data)
@@ -126,6 +130,7 @@ class AsyncVerification:
         theme: str | None = None,
         locale: str | None = None,
         metadata: str | None = None,
+        purpose: str | None = None,
     ) -> InitResult:
         """Create an init token for starting a verification session (async).
 
@@ -134,13 +139,15 @@ class AsyncVerification:
 
         Args:
             callback_url: URL where user is redirected after verification.
-            min_age: Minimum age threshold (12, 15, 18, 21, 25).
+            min_age: Minimum age threshold (1-99). When ``purpose`` is
+                "id_verification", 0 is also accepted (identity-only, no age gate).
             success_url: Override redirect URL on success.
             failed_url: Override redirect URL on failure.
             user_id: Your application's user identifier.
-            theme: Widget theme ("light", "dark", "auto").
+            theme: Widget theme ("light", "dark", "system").
             locale: Widget locale (e.g. "en", "de", "fr").
             metadata: Opaque string stored with the session.
+            purpose: Verification purpose ("age_verification" or "id_verification").
 
         Returns:
             InitResult with token and verify_url.
@@ -158,6 +165,7 @@ class AsyncVerification:
             theme=theme,
             locale=locale,
             metadata=metadata,
+            purpose=purpose,
         )
         data = await self._http.post("/init", body=body)
         return InitResult.from_dict(data)

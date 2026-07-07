@@ -109,8 +109,10 @@ class SessionResult:
         min_age_raw = data.get("min_age")
         remaining_raw = data.get("remaining_attempts")
 
+        # The /result DTO returns the session identifier as "token" (xtk_...),
+        # not "id". Prefer "token"; fall back to "id" for backwards compatibility.
         return cls(
-            id=str(data.get("id", "")),
+            id=str(data.get("token") or data.get("id", "")),
             status=status,
             liveness_result=data.get("liveness_result"),
             age_result=data.get("age_result"),

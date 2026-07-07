@@ -14,6 +14,12 @@ class SessionStatus(str, Enum):
 
     Mirrors the Go backend's SessionStatus enum and the PHP SDK's
     SessionStatus enum exactly.
+
+    Note on spelling: the server-side ``GET /result/{token}`` status uses the
+    American spelling ``"canceled"`` (this enum). The browser callback query
+    parameter ``?status=`` uses the British spelling ``"cancelled"`` (values:
+    ``success`` | ``failed`` | ``cancelled``) -- that value is only ever present
+    on the callback URL, never in the ``/result`` response body.
     """
 
     PENDING = "pending"
@@ -39,13 +45,15 @@ class InitParams(TypedDict, total=False):
 
     Attributes:
         callback_url: URL where user is redirected after verification (required).
-        min_age: Minimum age threshold (12, 15, 18, 21, 25).
+        min_age: Minimum age threshold (1-99). When ``purpose`` is
+            "id_verification", 0 is also accepted (identity-only, no age gate).
         success_url: Override redirect URL on success.
         failed_url: Override redirect URL on failure.
         user_id: Your application's user identifier.
-        theme: Widget theme ("light", "dark", "auto").
+        theme: Widget theme ("light", "dark", "system").
         locale: Widget locale (e.g. "en", "de", "fr").
         metadata: Opaque string stored with the session.
+        purpose: Verification purpose ("age_verification" or "id_verification").
     """
 
     callback_url: str
@@ -56,6 +64,7 @@ class InitParams(TypedDict, total=False):
     theme: str
     locale: str
     metadata: str
+    purpose: str
 
 
 class _APIResponseData(TypedDict, total=False):

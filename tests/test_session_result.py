@@ -93,6 +93,17 @@ class TestSessionResult:
         assert result.min_age is None
         assert result.required_methods is None
 
+    def test_from_dict_maps_token_to_id(self) -> None:
+        """The /result DTO returns the session identifier as 'token', not 'id'."""
+        result = SessionResult.from_dict({"token": "xtk_abc", "status": "completed"})
+        assert result.id == "xtk_abc"
+
+    def test_from_dict_token_takes_precedence_over_id(self) -> None:
+        result = SessionResult.from_dict(
+            {"token": "xtk_abc", "id": "sess_legacy", "status": "pending"}
+        )
+        assert result.id == "xtk_abc"
+
     def test_from_dict_unknown_status_defaults_pending(self) -> None:
         result = SessionResult.from_dict({"id": "s", "status": "unknown_status"})
         assert result.status == SessionStatus.PENDING

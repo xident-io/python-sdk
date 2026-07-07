@@ -32,7 +32,7 @@ async def start_verification(request: Request):
         result = await xident_client.verification.init(
             callback_url=str(request.url_for("verification_callback")),
             min_age=18,
-            theme="auto",
+            theme="system",
         )
         return RedirectResponse(url=result.verify_url)
     except XidentError as e:

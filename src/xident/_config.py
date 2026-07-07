@@ -15,7 +15,7 @@ DEFAULT_BASE_URL = "https://api.xident.io"
 DEFAULT_TIMEOUT = 30
 DEFAULT_MAX_RETRIES = 3
 API_VERSION = "verify/v1"
-SDK_VERSION = "1.0.0"
+SDK_VERSION = "1.0.1"
 
 
 @dataclass(frozen=True)

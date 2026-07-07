@@ -65,15 +65,34 @@ class TestVerification:
             success_url="https://example.com/success",
             failed_url="https://example.com/failed",
             user_id="user_99",
-            theme="light",
+            theme="system",
             locale="de",
             metadata="custom_data",
+            purpose="age_verification",
         )
 
         req = mock_transport.last_request
         assert req is not None
         body = json.loads(req.content)
-        assert len(body) == 8  # All params present
+        assert len(body) == 9  # All params present
+        assert body["theme"] == "system"
+        assert body["purpose"] == "age_verification"
+
+    def test_init_sends_purpose(self, mock_transport: MockTransport) -> None:
+        mock_transport.queue_success({"token": "xit_x", "verify_url": "https://v.io"})
+        client = xident.Xident(api_key="sk_test_123", transport=mock_transport)
+
+        client.verification.init(
+            callback_url="https://example.com/cb",
+            min_age=0,
+            purpose="id_verification",
+        )
+
+        req = mock_transport.last_request
+        assert req is not None
+        body = json.loads(req.content)
+        assert body["purpose"] == "id_verification"
+        assert body["min_age"] == 0
 
     def test_get_result_returns_session(self, mock_transport: MockTransport) -> None:
         mock_transport.queue_success(

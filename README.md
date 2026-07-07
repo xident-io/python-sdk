@@ -68,18 +68,26 @@ client = Xident(
 ```python
 result = client.verification.init(
     callback_url="https://example.com/callback",  # Required
-    min_age=18,              # Age threshold (12, 15, 18, 21, 25)
+    min_age=18,              # Age threshold 1-99 (0-99 when purpose="id_verification")
     success_url="...",       # Override redirect on success
     failed_url="...",        # Override redirect on failure
     user_id="user_42",       # Your user identifier
-    theme="dark",            # Widget theme (light, dark, auto)
+    theme="dark",            # Widget theme (light, dark, system)
     locale="de",             # Widget locale
     metadata="custom_data",  # Opaque metadata string
+    purpose="age_verification",  # "age_verification" (default) or "id_verification"
 )
 
-print(result.token)       # "xit_abc123"
+print(result.token)       # "xit_abc123" (init token, 10-minute TTL)
 print(result.verify_url)  # Full URL to redirect user to
 ```
+
+After verification the widget redirects the browser back to `callback_url` with
+query parameters: `status` (`success` | `failed` | `cancelled` — note the
+British spelling, callback only), `token` (the **result** token `xtk_...`, which
+is different from the init token `xit_...`), and `user_id` (if you supplied one).
+Always re-verify the result server-side with `get_result()` — never trust the
+callback query parameters alone.
 
 ### Get Verification Result
 

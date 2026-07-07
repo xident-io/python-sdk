@@ -24,7 +24,7 @@ def start_verification():
         result = xident_client.verification.init(
             callback_url=request.url_root.rstrip("/") + "/verify/callback",
             min_age=18,
-            theme="auto",
+            theme="system",
         )
         return redirect(result.verify_url)
     except XidentError as e:
