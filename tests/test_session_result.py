@@ -10,13 +10,13 @@ class TestSessionStatus:
     def test_all_values(self) -> None:
         assert SessionStatus.PENDING.value == "pending"
         assert SessionStatus.IN_PROGRESS.value == "in_progress"
-        assert SessionStatus.COMPLETED.value == "completed"
+        assert SessionStatus.SUCCESS.value == "success"
         assert SessionStatus.FAILED.value == "failed"
         assert SessionStatus.CANCELED.value == "canceled"
         assert SessionStatus.CLAIMED.value == "claimed"
 
     def test_is_terminal_true(self) -> None:
-        assert SessionStatus.COMPLETED.is_terminal is True
+        assert SessionStatus.SUCCESS.is_terminal is True
         assert SessionStatus.FAILED.is_terminal is True
         assert SessionStatus.CANCELED.is_terminal is True
         assert SessionStatus.CLAIMED.is_terminal is True
@@ -27,8 +27,8 @@ class TestSessionStatus:
 
     def test_str_enum(self) -> None:
         """SessionStatus should be usable as a string."""
-        assert str(SessionStatus.COMPLETED) == "SessionStatus.COMPLETED"
-        assert SessionStatus.COMPLETED == "completed"
+        assert str(SessionStatus.SUCCESS) == "SessionStatus.SUCCESS"
+        assert SessionStatus.SUCCESS == "success"
 
     def test_from_string(self) -> None:
         assert SessionStatus("pending") == SessionStatus.PENDING
@@ -43,7 +43,7 @@ class TestSessionResult:
     def test_from_dict_full(self) -> None:
         data = {
             "id": "sess_abc",
-            "status": "completed",
+            "status": "success",
             "liveness_result": {"passed": True},
             "age_result": {"verified_bracket": 18, "method": "ml_fast"},
             "ocr_result": {"dob": "2000-01-01"},
@@ -63,7 +63,7 @@ class TestSessionResult:
         result = SessionResult.from_dict(data)
 
         assert result.id == "sess_abc"
-        assert result.status == SessionStatus.COMPLETED
+        assert result.status == SessionStatus.SUCCESS
         assert result.liveness_result == {"passed": True}
         assert result.age_result == {"verified_bracket": 18, "method": "ml_fast"}
         assert result.ocr_result == {"dob": "2000-01-01"}
@@ -95,7 +95,7 @@ class TestSessionResult:
 
     def test_from_dict_maps_token_to_id(self) -> None:
         """The /result DTO returns the session identifier as 'token', not 'id'."""
-        result = SessionResult.from_dict({"token": "xtk_abc", "status": "completed"})
+        result = SessionResult.from_dict({"token": "xtk_abc", "status": "success"})
         assert result.id == "xtk_abc"
 
     def test_from_dict_token_takes_precedence_over_id(self) -> None:
@@ -119,7 +119,7 @@ class TestSessionResult:
         assert result.created_at == ""
 
     def test_is_verified(self) -> None:
-        result = SessionResult.from_dict({"id": "s", "status": "completed"})
+        result = SessionResult.from_dict({"id": "s", "status": "success"})
         assert result.is_verified() is True
 
     def test_is_verified_false(self) -> None:
@@ -127,7 +127,7 @@ class TestSessionResult:
         assert result.is_verified() is False
 
     def test_is_completed(self) -> None:
-        result = SessionResult.from_dict({"id": "s", "status": "completed"})
+        result = SessionResult.from_dict({"id": "s", "status": "success"})
         assert result.is_completed() is True
 
     def test_is_failed(self) -> None:
@@ -143,11 +143,11 @@ class TestSessionResult:
         assert result.is_pending() is True
 
     def test_is_pending_false_for_completed(self) -> None:
-        result = SessionResult.from_dict({"id": "s", "status": "completed"})
+        result = SessionResult.from_dict({"id": "s", "status": "success"})
         assert result.is_pending() is False
 
     def test_is_terminal(self) -> None:
-        for status in ["completed", "failed", "canceled", "claimed"]:
+        for status in ["success", "failed", "canceled", "claimed"]:
             result = SessionResult.from_dict({"id": "s", "status": status})
             assert result.is_terminal() is True, f"{status} should be terminal"
 
@@ -158,13 +158,13 @@ class TestSessionResult:
 
     def test_age_bracket_from_verified(self) -> None:
         result = SessionResult.from_dict(
-            {"id": "s", "status": "completed", "age_result": {"verified_bracket": 21}}
+            {"id": "s", "status": "success", "age_result": {"verified_bracket": 21}}
         )
         assert result.age_bracket() == 21
 
     def test_age_bracket_from_estimated(self) -> None:
         result = SessionResult.from_dict(
-            {"id": "s", "status": "completed", "age_result": {"estimated_age": 25}}
+            {"id": "s", "status": "success", "age_result": {"estimated_age": 25}}
         )
         assert result.age_bracket() == 25
 
@@ -172,7 +172,7 @@ class TestSessionResult:
         result = SessionResult.from_dict(
             {
                 "id": "s",
-                "status": "completed",
+                "status": "success",
                 "age_result": {"verified_bracket": 18, "estimated_age": 25},
             }
         )
@@ -184,13 +184,13 @@ class TestSessionResult:
 
     def test_age_bracket_none_when_empty_age_result(self) -> None:
         result = SessionResult.from_dict(
-            {"id": "s", "status": "completed", "age_result": {}}
+            {"id": "s", "status": "success", "age_result": {}}
         )
         assert result.age_bracket() is None
 
     def test_method(self) -> None:
         result = SessionResult.from_dict(
-            {"id": "s", "status": "completed", "age_result": {"method": "ocr"}}
+            {"id": "s", "status": "success", "age_result": {"method": "ocr"}}
         )
         assert result.method() == "ocr"
 

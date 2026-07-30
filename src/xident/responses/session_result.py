@@ -39,6 +39,11 @@ class SessionResult:
         started_at: ISO 8601 timestamp of session start, or None.
         completed_at: ISO 8601 timestamp of session completion, or None.
         expires_at: ISO 8601 timestamp of session expiry, or None.
+        reason: Why a non-success terminal status came out that way; empty
+            when ``status`` is SUCCESS. Known values: ``age_below_threshold``,
+            ``dob_unreadable``, ``face_mismatch``, ``face_not_detected``,
+            ``docverify_reject``, ``blacklist_match``. Treat the set as open --
+            new reasons may be added, so always handle a default.
     """
 
     id: str
@@ -58,14 +63,26 @@ class SessionResult:
     started_at: str | None = None
     completed_at: str | None = None
     expires_at: str | None = None
+    reason: str = ""
 
     def is_verified(self) -> bool:
-        """Session completed successfully (age verification passed)."""
-        return self.status == SessionStatus.COMPLETED
+        """The user PASSED verification. This is the check to gate on.
+
+        False for a session that ran all the way through the flow but did not
+        meet the age threshold -- that session is FAILED with ``reason``
+        ``age_below_threshold``.
+        """
+        return self.status == SessionStatus.SUCCESS
 
     def is_completed(self) -> bool:
-        """Session completed (any outcome)."""
-        return self.status == SessionStatus.COMPLETED
+        """Alias of :meth:`is_verified`.
+
+        .. deprecated::
+            The docstring used to claim "any outcome", which the code never
+            did -- it has always returned the pass verdict only. For "reached
+            any terminal state" use :meth:`is_terminal`.
+        """
+        return self.is_verified()
 
     def is_failed(self) -> bool:
         """Session failed verification."""
@@ -100,6 +117,12 @@ class SessionResult:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SessionResult:
         """Create a SessionResult from an API response data dict."""
+        # SessionStatus._missing_ maps a legacy "completed" from a
+        # pre-July-2026 deployment onto SUCCESS. An unrecognised value still
+        # raises and falls back to PENDING, which is neither terminal nor
+        # verified -- so a caller polling for an outcome keeps polling rather
+        # than treating something it does not understand as a finished
+        # verification.
         status_str = str(data.get("status", "pending"))
         try:
             status = SessionStatus(status_str)
@@ -129,4 +152,5 @@ class SessionResult:
             started_at=data.get("started_at"),
             completed_at=data.get("completed_at"),
             expires_at=data.get("expires_at"),
+            reason=str(data.get("reason", "")),
         )

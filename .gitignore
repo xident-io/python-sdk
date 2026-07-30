@@ -1,0 +1,6 @@
+
+# Python build artifacts. These were tracked until 2026-07-30; a stale .pyc
+# blocking a `git stash pop` is how that surfaced.
+__pycache__/
+*.py[cod]
+.pytest_cache/

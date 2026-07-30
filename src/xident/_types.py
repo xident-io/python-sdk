@@ -9,31 +9,72 @@ from enum import Enum
 from typing import Optional, TypedDict
 
 
+#: The value the pass verdict carried before July 2026.
+#:
+#: Kept only so an SDK pointed at a deployment older than that rename still
+#: behaves -- an SDK outlives a rollout window, and gets aimed at self-hosted
+#: and lagging installs long after our own migration finished.
+_LEGACY_SUCCESS = "completed"
+
+
 class SessionStatus(str, Enum):
-    """Verification session lifecycle states.
+    """Verification session states.
 
-    Mirrors the Go backend's SessionStatus enum and the PHP SDK's
-    SessionStatus enum exactly.
-
-    Note on spelling: the server-side ``GET /result/{token}`` status uses the
-    American spelling ``"canceled"`` (this enum). The browser callback query
-    parameter ``?status=`` uses the British spelling ``"cancelled"`` (values:
-    ``success`` | ``failed`` | ``cancelled``) -- that value is only ever present
-    on the callback URL, never in the ``/result`` response body.
+    The API uses ONE vocabulary for the outcome across every surface -- the
+    result endpoint, the webhook payload and the browser callback's
+    ``?status=`` query parameter all use these same words. Earlier versions of
+    this SDK documented a spelling difference between the callback and the
+    result endpoint; that is no longer true.
     """
 
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
+
+    #: The PASS verdict: the user met the age threshold and every required
+    #: check passed.
+    #:
+    #: This is a verdict, not a lifecycle marker. A session that ran to the end
+    #: of the flow but did not meet the threshold is ``FAILED``, not this.
+    SUCCESS = "success"
+
     FAILED = "failed"
     CANCELED = "canceled"
     CLAIMED = "claimed"
+
+    #: .. deprecated::
+    #:     The API renamed this verdict from ``"completed"`` to ``"success"``
+    #:     in July 2026, because "completed" described a lifecycle and was read
+    #:     by at least one integrator as "the flow finished" regardless of the
+    #:     age result. Use :attr:`SUCCESS`.
+    #:
+    #: Because this repeats SUCCESS's value, Python makes it an ALIAS rather
+    #: than a distinct member: ``SessionStatus.COMPLETED is
+    #: SessionStatus.SUCCESS``. So existing ``status == SessionStatus.COMPLETED``
+    #: code keeps working AND keeps being correct. Had it kept the old literal
+    #: it would still run and quietly report every verified user as unverified.
+    #: Being an alias, it is also excluded from ``list(SessionStatus)``.
+    COMPLETED = "success"
+
+    @classmethod
+    def _missing_(cls, value: object) -> SessionStatus | None:
+        """Map a legacy wire value onto the current vocabulary.
+
+        Python calls this when value lookup fails, so ``SessionStatus(raw)``
+        handles a pre-rename deployment anywhere it is called -- including in
+        user code we cannot see, which a helper in our own parser would miss.
+
+        Returning ``None`` for anything else preserves the normal ``ValueError``
+        so an unrecognised status is never silently turned into a verdict.
+        """
+        if value == _LEGACY_SUCCESS:
+            return cls.SUCCESS
+        return None
 
     @property
     def is_terminal(self) -> bool:
         """Whether the session has reached a terminal state (no more changes possible)."""
         return self in (
-            SessionStatus.COMPLETED,
+            SessionStatus.SUCCESS,
             SessionStatus.FAILED,
             SessionStatus.CANCELED,
             SessionStatus.CLAIMED,

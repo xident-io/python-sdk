@@ -83,8 +83,8 @@ print(result.verify_url)  # Full URL to redirect user to
 ```
 
 After verification the widget redirects the browser back to `callback_url` with
-query parameters: `status` (`success` | `failed` | `cancelled` — note the
-British spelling, callback only), `token` (the **result** token `xtk_...`, which
+query parameters: `status` (`success` | `failed` | `canceled` — the same three
+words the result endpoint uses), `token` (the **result** token `xtk_...`, which
 is different from the init token `xit_...`), and `user_id` (if you supplied one).
 Always re-verify the result server-side with `get_result()` — never trust the
 callback query parameters alone.
@@ -102,7 +102,7 @@ session.is_terminal()    # True if no more changes possible
 session.age_bracket()    # 18 (verified age threshold)
 session.method()         # "ml_fast", "ocr", etc.
 session.country_code     # "US", "DE", etc.
-session.status           # SessionStatus.COMPLETED
+session.status           # SessionStatus.SUCCESS
 ```
 
 ## Webhooks

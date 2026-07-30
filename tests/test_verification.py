@@ -98,7 +98,7 @@ class TestVerification:
         mock_transport.queue_success(
             {
                 "id": "sess_123",
-                "status": "completed",
+                "status": "success",
                 "age_result": {"verified_bracket": 18, "method": "ml_fast"},
                 "country_code": "US",
                 "created_at": "2026-01-01T00:00:00Z",
