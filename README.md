@@ -116,7 +116,7 @@ event = client.webhooks.construct_event(
     tolerance=300,               # Max age in seconds (default: 5 min)
 )
 
-print(event["type"])  # "session.completed"
+print(event["type"])  # "session.success"
 print(event["data"])  # Event payload dict
 
 # Or verify signature only

@@ -75,7 +75,9 @@ async def webhook(
         )
 
         match event["type"]:
-            case "session.completed":
+            # "session.completed" is the pre-July-2026 name; an endpoint
+            # registered before then still receives it.
+            case "session.success" | "session.completed":
                 # Process completed verification
                 pass
             case "session.failed":

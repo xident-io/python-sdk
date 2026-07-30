@@ -86,7 +86,9 @@ def webhook(request: HttpRequest) -> HttpResponse:
     try:
         event = xident_client.webhooks.construct_event(payload, signature, webhook_secret)
 
-        if event["type"] == "session.completed":
+        # "session.completed" is the pre-July-2026 name; an endpoint
+        # registered before then still receives it.
+        if event["type"] in ("session.success", "session.completed"):
             # Process completed verification
             pass
         elif event["type"] == "session.failed":

@@ -27,7 +27,7 @@ class TestWebhooks:
 
     def test_verify_valid_signature(self) -> None:
         webhooks = Webhooks()
-        payload = '{"type":"session.completed","data":{"id":"sess_1"}}'
+        payload = '{"type":"session.success","data":{"id":"sess_1"}}'
         secret = "whsec_test_secret"
         signature = self._make_signature(payload, secret)
 
@@ -36,7 +36,7 @@ class TestWebhooks:
 
     def test_verify_invalid_signature(self) -> None:
         webhooks = Webhooks()
-        payload = '{"type":"session.completed"}'
+        payload = '{"type":"session.success"}'
         secret = "whsec_test_secret"
         # Use a recent timestamp so replay protection doesn't fire first
         ts = int(time.time())
@@ -102,7 +102,7 @@ class TestWebhooks:
     def test_construct_event(self) -> None:
         webhooks = Webhooks()
         event_data = {
-            "type": "session.completed",
+            "type": "session.success",
             "data": {"id": "sess_123", "status": "completed"},
             "id": "evt_abc",
             "created": 1710345600,
@@ -113,7 +113,7 @@ class TestWebhooks:
 
         event = webhooks.construct_event(payload, signature, secret)
 
-        assert event["type"] == "session.completed"
+        assert event["type"] == "session.success"
         assert event["data"]["id"] == "sess_123"
         assert event["id"] == "evt_abc"
         assert event["created"] == 1710345600
@@ -136,13 +136,13 @@ class TestWebhooks:
 
     def test_parse_event_standard(self) -> None:
         event_data = {
-            "type": "session.completed",
+            "type": "session.success",
             "data": {"id": "sess_1", "status": "completed"},
             "id": "evt_1",
             "created": 1710345600,
         }
         result = Webhooks.parse_event(json.dumps(event_data))
-        assert result["type"] == "session.completed"
+        assert result["type"] == "session.success"
         assert result["data"]["id"] == "sess_1"
         assert result["id"] == "evt_1"
         assert result["created"] == 1710345600
