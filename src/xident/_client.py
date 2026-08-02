@@ -31,6 +31,8 @@ import httpx
 
 from ._config import SDK_VERSION, Config
 from ._http_client import AsyncHttpClient, SyncHttpClient
+from .resources.blacklist import AsyncBlacklist, Blacklist
+from .resources.face_2fa import AsyncFace2FA, Face2FA
 from .resources.verification import AsyncVerification, Verification
 from .resources.webhooks import Webhooks
 
@@ -74,6 +76,16 @@ class Xident:
     def verification(self) -> Verification:
         """Verification resource -- init tokens and session results."""
         return Verification(self._http)
+
+    @functools.cached_property
+    def face_2fa(self) -> Face2FA:
+        """Face 2FA resource -- enroll a face and verify against it (1:1)."""
+        return Face2FA(self._http)
+
+    @functools.cached_property
+    def blacklist(self) -> Blacklist:
+        """Blacklist resource -- manage your tenant's face blacklist."""
+        return Blacklist(self._http)
 
     @functools.cached_property
     def webhooks(self) -> Webhooks:
@@ -149,6 +161,16 @@ class AsyncXident:
     def verification(self) -> AsyncVerification:
         """Verification resource -- init tokens and session results (async)."""
         return AsyncVerification(self._http)
+
+    @functools.cached_property
+    def face_2fa(self) -> AsyncFace2FA:
+        """Face 2FA resource -- enroll a face and verify against it (async)."""
+        return AsyncFace2FA(self._http)
+
+    @functools.cached_property
+    def blacklist(self) -> AsyncBlacklist:
+        """Blacklist resource -- manage your tenant's face blacklist (async)."""
+        return AsyncBlacklist(self._http)
 
     @functools.cached_property
     def webhooks(self) -> Webhooks:

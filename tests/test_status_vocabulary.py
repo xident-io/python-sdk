@@ -142,6 +142,12 @@ class TestNoStaleVocabularyInSource:
             code = re.sub(r'"""[\s\S]*?"""', "", source)
             code = re.sub(r"#.*$", "", code, flags=re.MULTILINE)
             code = re.sub(r'_LEGACY_SUCCESS = "[^"]*"', "", code)
+            # The face-2FA CHALLENGE lifecycle legitimately uses "completed"
+            # on the wire -- there it is a lifecycle state, not a verdict
+            # (the verdict is the separate `passed` field), which is exactly
+            # the design the session rename moved toward. The named constant
+            # is the one place that literal belongs.
+            code = re.sub(r'FACE_2FA_STATUS_COMPLETED = "[^"]*"', "", code)
             if re.search(r"""['"]completed['"]""", code):
                 offenders.append(str(path.relative_to(ROOT)))
         assert offenders == [], 'the pass verdict is "success"'

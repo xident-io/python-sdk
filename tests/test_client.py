@@ -74,11 +74,13 @@ class TestXident:
         r = repr(client)
         assert "Xident(" in r
         assert "sk_test_..." in r
-        assert "localhost" in r
+        assert "api.xident.io" in r
 
     def test_repr_short_key(self) -> None:
+        # The shortest key the format validation accepts is the bare
+        # "sk_test_" prefix (8 chars) -- short enough to hit the *** mask.
         transport = MockTransport()
-        client = xident.Xident(api_key="short", transport=transport)
+        client = xident.Xident(api_key="sk_test_", transport=transport)
         r = repr(client)
         assert "***" in r
 

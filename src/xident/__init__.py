@@ -30,7 +30,15 @@ from .errors import (
     ValidationError,
     XidentError,
 )
-from .responses import InitResult, SessionResult
+from .responses import (
+    BlacklistEntry,
+    BlacklistPage,
+    Face2FAChallenge,
+    Face2FAEnrollment,
+    Face2FAStatus,
+    InitResult,
+    SessionResult,
+)
 
 __version__ = SDK_VERSION
 
@@ -41,6 +49,11 @@ __all__ = [
     # Responses
     "InitResult",
     "SessionResult",
+    "Face2FAChallenge",
+    "Face2FAStatus",
+    "Face2FAEnrollment",
+    "BlacklistEntry",
+    "BlacklistPage",
     # Types
     "SessionStatus",
     # Errors
