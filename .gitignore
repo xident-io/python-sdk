@@ -4,3 +4,10 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Coverage output. `[tool.coverage.run]` in pyproject.toml writes these on
+# every `pytest --cov`; one of them reached the index before this line existed.
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml

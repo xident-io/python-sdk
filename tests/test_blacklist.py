@@ -126,6 +126,28 @@ class TestBlacklist:
         assert result.total == 0
         assert not result.has_more
 
+    def test_list_data_not_a_list_yields_empty_page(
+        self, mock_transport: MockTransport
+    ) -> None:
+        # A list endpoint that answers with an object instead of an array is
+        # malformed. Degrade to an empty page rather than raising TypeError
+        # while iterating -- a caller sweeping their blacklist should see
+        # "nothing here", not a crash inside the SDK's parser.
+        mock_transport.queue_response(
+            make_success_response({"unexpected": "object where rows belong"})
+        )
+        client = xident.Xident(api_key="sk_test_123", transport=mock_transport)
+
+        result = client.blacklist.list()
+
+        assert result.entries == []
+        assert len(result) == 0
+        assert list(result) == []
+        assert result.total == 0
+        assert result.total_pages == 0
+        assert result.per_page == 0
+        assert result.has_more is False
+
     def test_add_by_session(self, mock_transport: MockTransport) -> None:
         mock_transport.queue_response(
             make_success_response({"status": "processing"}, status_code=201)

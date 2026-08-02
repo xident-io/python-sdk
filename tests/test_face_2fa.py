@@ -291,6 +291,18 @@ class TestAsyncFace2FA:
         assert enrollment.enrolled is True
 
     @pytest.mark.asyncio
+    async def test_get_user_empty_id_raises(self) -> None:
+        # Guard client-side: an empty id would otherwise GET /2fa/users/ --
+        # a different route -- and burn a round trip to learn nothing.
+        transport = AsyncMockTransport()
+        client = xident.AsyncXident(api_key="sk_test_123", transport=transport)
+
+        with pytest.raises(ValueError, match="User ID cannot be empty"):
+            await client.face_2fa.get_user("")
+
+        assert transport.request_count == 0
+
+    @pytest.mark.asyncio
     async def test_delete_user(self) -> None:
         transport = AsyncMockTransport()
         transport.queue_success({"deleted": True})

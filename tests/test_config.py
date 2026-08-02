@@ -62,7 +62,10 @@ class TestConfig:
     def test_user_agent(self) -> None:
         config = Config(api_key="sk_test_123")
         py_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-        expected = f"Xident-Python/{SDK_VERSION} Python/{py_version} {platform.system()}/{platform.release()}"
+        expected = (
+            f"Xident-Python/{SDK_VERSION} Python/{py_version} "
+            f"{platform.system()}/{platform.release()}"
+        )
         assert config.user_agent == expected
 
     def test_frozen_immutability(self) -> None:

@@ -42,7 +42,10 @@ from .responses import (
 
 __version__ = SDK_VERSION
 
-__all__ = [
+# Grouped by role rather than sorted alphabetically: this list doubles as the
+# public-API map a reader scans first. noqa keeps ruff's RUF022 from flattening
+# the grouping away.
+__all__ = [  # noqa: RUF022
     # Clients
     "Xident",
     "AsyncXident",

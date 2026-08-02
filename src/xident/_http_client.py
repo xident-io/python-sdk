@@ -18,7 +18,6 @@ import httpx
 
 from ._config import Config
 from .errors import (
-    APIError,
     AuthenticationError,
     NetworkError,
     NotFoundError,
@@ -84,8 +83,11 @@ def _retry_delay_seconds(attempt: int) -> float:
     Uses full jitter (random between 0 and the exponential cap) to prevent
     thundering herd when multiple SDK instances retry simultaneously.
     """
-    base = 2 ** (attempt - 1)  # 1, 2, 4, 8, ...
-    jitter = random.random()  # noqa: S311 — not security-sensitive
+    # 2.0 ** n, not 2 ** n: identical values, but int.__pow__ is typed as
+    # returning Any (a negative exponent yields a float), which loses the
+    # return type under mypy --strict.
+    base = 2.0 ** (attempt - 1)  # 1, 2, 4, 8, ...
+    jitter = random.random()
     return base * (0.5 + jitter * 0.5)  # between base*0.5 and base*1.0
 
 

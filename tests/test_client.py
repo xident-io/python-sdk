@@ -100,6 +100,35 @@ class TestAsyncXident:
         client = xident.AsyncXident(api_key="sk_test_123", transport=transport)
         assert isinstance(client, xident.AsyncXident)
 
+    def test_constructor_with_all_options(self) -> None:
+        # The async constructor builds its Config with the same
+        # omit-None-so-the-default-wins logic as the sync one; assert it
+        # forwards every override rather than silently dropping one.
+        transport = AsyncMockTransport()
+        client = xident.AsyncXident(
+            api_key="sk_test_123",
+            base_url="https://custom.api.io/",
+            timeout=60,
+            max_retries=5,
+            headers={"X-Custom": "value"},
+            transport=transport,
+        )
+
+        assert client.config.api_key == "sk_test_123"
+        assert client.config.base_url == "https://custom.api.io"  # trailing slash stripped
+        assert client.config.timeout == 60
+        assert client.config.max_retries == 5
+        assert client.config.headers == {"X-Custom": "value"}
+
+    def test_constructor_defaults_when_options_omitted(self) -> None:
+        transport = AsyncMockTransport()
+        client = xident.AsyncXident(api_key="sk_test_123", transport=transport)
+
+        assert client.config.base_url == "https://api.xident.io"
+        assert client.config.timeout == 30
+        assert client.config.max_retries == 3
+        assert client.config.headers is None
+
     def test_verification_returns_async_resource(self) -> None:
         transport = AsyncMockTransport()
         client = xident.AsyncXident(api_key="sk_test_123", transport=transport)

@@ -6,8 +6,7 @@ Contains TypedDicts for API parameters and the SessionStatus enum.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional, TypedDict
-
+from typing import Any, TypedDict
 
 #: The value the pass verdict carried before July 2026.
 #:
@@ -112,6 +111,6 @@ class _APIResponseData(TypedDict, total=False):
     """Internal: parsed API response envelope."""
 
     success: bool
-    data: Optional[dict]  # type: ignore[type-arg]
-    error: Optional[dict]  # type: ignore[type-arg]
-    meta: Optional[dict]  # type: ignore[type-arg]
+    data: dict[str, Any] | None
+    error: dict[str, Any] | None
+    meta: dict[str, Any] | None

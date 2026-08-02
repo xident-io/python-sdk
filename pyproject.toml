@@ -4,7 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "xident"
-version = "1.2.0"
+# Single-sourced from src/xident/_config.py::SDK_VERSION -- see [tool.hatch.version].
+# Do NOT add a literal `version = "..."` here; it would reintroduce a second
+# declaration that can (and did) drift out of step with the runtime constant.
+dynamic = ["version"]
 description = "Official Python SDK for Xident age & identity verification"
 readme = "README.md"
 license = "MIT"
@@ -46,12 +49,31 @@ dev = [
     "ruff>=0.1",
 ]
 
+[tool.hatch.version]
+# Build-time read of the one declaration. `hatchling` applies `pattern` to
+# `path` and uses the named `version` group as the distribution version.
+path = "src/xident/_config.py"
+pattern = 'SDK_VERSION = "(?P<version>[^"]+)"'
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/xident"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["src/xident"]
+# Branch coverage, not just statements: an `if` whose false arm is never taken
+# reads as 100% otherwise.
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+# The whole package is measured. No `omit`, and no `exclude_lines` beyond
+# coverage's built-in default -- if a line is hard to reach, the fix is a test
+# that reaches it or a note in the review, not an exemption.
+fail_under = 100
 
 [tool.mypy]
 python_version = "3.9"

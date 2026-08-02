@@ -10,12 +10,24 @@ import platform
 import sys
 from dataclasses import dataclass
 
-
 DEFAULT_BASE_URL = "https://api.xident.io"
 DEFAULT_TIMEOUT = 30
 DEFAULT_MAX_RETRIES = 3
 API_VERSION = "verify/v1"
-SDK_VERSION = "1.0.1"
+#: The ONE place the SDK version is declared.
+#:
+#: ``pyproject.toml`` does not carry its own copy -- it declares the version
+#: dynamic and reads this literal at build time (``[tool.hatch.version]``), so
+#: the packaged version and the version this module reports cannot drift apart.
+#: Bump it here and nowhere else.
+#:
+#: Deliberately a literal rather than ``importlib.metadata.version("xident")``:
+#: metadata only exists for an *installed* distribution, so a source checkout,
+#: a vendored copy or a zipapp would raise ``PackageNotFoundError`` and need a
+#: hardcoded fallback -- which is the second number this change exists to
+#: remove. Installed metadata also goes stale against an editable checkout
+#: until the next reinstall.
+SDK_VERSION = "1.3.0"
 
 
 @dataclass(frozen=True)
@@ -64,4 +76,7 @@ class Config:
     def user_agent(self) -> str:
         """User-Agent header value."""
         py_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-        return f"Xident-Python/{SDK_VERSION} Python/{py_version} {platform.system()}/{platform.release()}"
+        return (
+            f"Xident-Python/{SDK_VERSION} Python/{py_version} "
+            f"{platform.system()}/{platform.release()}"
+        )
