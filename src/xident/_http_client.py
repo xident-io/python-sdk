@@ -122,6 +122,16 @@ class SyncHttpClient:
         """Send a GET request and return the parsed data dict."""
         return self._request("GET", path, params=params)
 
+    def get_envelope(
+        self, path: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Send a GET request and return the FULL response envelope.
+
+        Unlike :meth:`get`, this preserves ``meta`` alongside ``data`` --
+        list endpoints carry their pagination in ``meta.pagination``.
+        """
+        return self._request("GET", path, params=params, return_envelope=True)
+
     def post(self, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
         """Send a POST request and return the parsed data dict."""
         return self._request("POST", path, json_body=body)
@@ -141,6 +151,7 @@ class SyncHttpClient:
         *,
         params: dict[str, Any] | None = None,
         json_body: dict[str, Any] | None = None,
+        return_envelope: bool = False,
     ) -> dict[str, Any]:
         """Execute request with retry logic."""
         last_exception: Exception | None = None
@@ -176,6 +187,8 @@ class SyncHttpClient:
             if not body.get("success", False):
                 _raise_for_status(body, response.status_code)
 
+            if return_envelope:
+                return body
             return body.get("data") or {}
 
         # Should not reach here, but just in case
@@ -223,6 +236,16 @@ class AsyncHttpClient:
         """Send a GET request and return the parsed data dict."""
         return await self._request("GET", path, params=params)
 
+    async def get_envelope(
+        self, path: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Send a GET request and return the FULL response envelope.
+
+        Unlike :meth:`get`, this preserves ``meta`` alongside ``data`` --
+        list endpoints carry their pagination in ``meta.pagination``.
+        """
+        return await self._request("GET", path, params=params, return_envelope=True)
+
     async def post(self, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
         """Send a POST request and return the parsed data dict."""
         return await self._request("POST", path, json_body=body)
@@ -242,6 +265,7 @@ class AsyncHttpClient:
         *,
         params: dict[str, Any] | None = None,
         json_body: dict[str, Any] | None = None,
+        return_envelope: bool = False,
     ) -> dict[str, Any]:
         """Execute request with retry logic (async)."""
         last_exception: Exception | None = None
@@ -279,6 +303,8 @@ class AsyncHttpClient:
             if not body.get("success", False):
                 _raise_for_status(body, response.status_code)
 
+            if return_envelope:
+                return body
             return body.get("data") or {}
 
         if last_exception:

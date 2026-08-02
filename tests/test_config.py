@@ -12,7 +12,7 @@ class TestConfig:
     def test_defaults(self) -> None:
         config = Config(api_key="sk_test_123")
         assert config.api_key == "sk_test_123"
-        assert config.base_url == "http://localhost:9000"
+        assert config.base_url == "https://api.xident.io"
         assert config.timeout == 30
         assert config.max_retries == 3
         assert config.headers is None

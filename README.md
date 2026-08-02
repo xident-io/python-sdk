@@ -123,6 +123,64 @@ print(event["data"])  # Event payload dict
 client.webhooks.verify_signature(payload, signature, secret)
 ```
 
+## Face 2FA
+
+Enroll a face for one of your users, then verify a new selfie against it
+(1:1 comparison). Processing is asynchronous — both calls return a challenge
+you poll for the pass/fail verdict. The API never returns confidence scores
+or biometric data.
+
+```python
+# Enroll (or replace) a user's face — free of charge
+challenge = client.face_2fa.register(user_id="user_42", image=base64_selfie)
+
+# Verify a new selfie against the enrolled face
+challenge = client.face_2fa.verify(user_id="user_42", image=base64_selfie)
+
+# Poll the outcome
+status = client.face_2fa.get_status(challenge.challenge_id)
+if status.is_processing():
+    ...  # poll again shortly
+elif status.is_passed():
+    ...  # 2FA passed
+else:
+    print(status.failure_reason)  # "face_mismatch", "no_face_detected", ...
+
+# Check enrollment
+enrollment = client.face_2fa.get_user("user_42")
+print(enrollment.enrolled, enrollment.enrolled_at)
+
+# Delete the enrollment (GDPR hard delete, idempotent)
+client.face_2fa.delete_user("user_42")
+```
+
+All methods are also available on `AsyncXident` (`await client.face_2fa...`).
+
+## Blacklist
+
+Manage your tenant's face blacklist. Entries are added by **session** or by
+**image** — the face embedding is derived server-side and never returned.
+Adding is asynchronous: the entry appears in `list()` once processed.
+
+```python
+# Blacklist the person from one of YOUR completed verification sessions
+client.blacklist.add_by_session(session_token="xtk_abc123", reason="chargeback fraud")
+
+# Or blacklist the face in an image
+client.blacklist.add_by_image(image=base64_image, reason="fake document")
+
+# List entries (paginated)
+page = client.blacklist.list(page=1, per_page=20)
+for entry in page:
+    print(entry.id, entry.reason, entry.source, entry.created_at)
+print(page.total, page.has_more)
+
+# Remove an entry (un-ban)
+client.blacklist.remove(entry_id=42)
+```
+
+All methods are also available on `AsyncXident` (`await client.blacklist...`).
+
 ## Error Handling
 
 ```python
