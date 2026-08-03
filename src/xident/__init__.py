@@ -31,12 +31,17 @@ from .errors import (
     XidentError,
 )
 from .responses import (
+    AgeCheck,
     BlacklistEntry,
     BlacklistPage,
+    Checks,
+    DocumentCheck,
     Face2FAChallenge,
     Face2FAEnrollment,
     Face2FAStatus,
+    FaceMatchCheck,
     InitResult,
+    LivenessCheck,
     SessionResult,
 )
 
@@ -52,6 +57,11 @@ __all__ = [  # noqa: RUF022
     # Responses
     "InitResult",
     "SessionResult",
+    "Checks",
+    "LivenessCheck",
+    "AgeCheck",
+    "DocumentCheck",
+    "FaceMatchCheck",
     "Face2FAChallenge",
     "Face2FAStatus",
     "Face2FAEnrollment",

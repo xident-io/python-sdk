@@ -39,6 +39,8 @@ class Verification:
         locale: str | None = None,
         metadata: str | None = None,
         purpose: str | None = None,
+        verification_mode: str | None = None,
+        liveness_difficulty: str | None = None,
     ) -> InitResult:
         """Create an init token for starting a verification session.
 
@@ -56,6 +58,14 @@ class Verification:
             locale: Widget locale (e.g. "en", "de", "fr").
             metadata: Opaque string stored with the session.
             purpose: Verification purpose ("age_verification" or "id_verification").
+            verification_mode: Overrides the rule engine's choice of methods
+                for this session: "auto" (default), "document" to force
+                document + face match, or "facial" to force on-device age
+                estimation. Composes with ``min_age`` rather than replacing
+                it -- "document" with ``min_age=21`` still enforces 21, it
+                just insists the proof be a document.
+            liveness_difficulty: Overrides the number of liveness actions the
+                widget requires: "easy", "medium", or "hard".
 
         Returns:
             InitResult with token and verify_url.
@@ -74,6 +84,8 @@ class Verification:
             locale=locale,
             metadata=metadata,
             purpose=purpose,
+            verification_mode=verification_mode,
+            liveness_difficulty=liveness_difficulty,
         )
         data = self._http.post("/init", body=body)
         return InitResult.from_dict(data)
@@ -131,6 +143,8 @@ class AsyncVerification:
         locale: str | None = None,
         metadata: str | None = None,
         purpose: str | None = None,
+        verification_mode: str | None = None,
+        liveness_difficulty: str | None = None,
     ) -> InitResult:
         """Create an init token for starting a verification session (async).
 
@@ -148,6 +162,14 @@ class AsyncVerification:
             locale: Widget locale (e.g. "en", "de", "fr").
             metadata: Opaque string stored with the session.
             purpose: Verification purpose ("age_verification" or "id_verification").
+            verification_mode: Overrides the rule engine's choice of methods
+                for this session: "auto" (default), "document" to force
+                document + face match, or "facial" to force on-device age
+                estimation. Composes with ``min_age`` rather than replacing
+                it -- "document" with ``min_age=21`` still enforces 21, it
+                just insists the proof be a document.
+            liveness_difficulty: Overrides the number of liveness actions the
+                widget requires: "easy", "medium", or "hard".
 
         Returns:
             InitResult with token and verify_url.
@@ -166,6 +188,8 @@ class AsyncVerification:
             locale=locale,
             metadata=metadata,
             purpose=purpose,
+            verification_mode=verification_mode,
+            liveness_difficulty=liveness_difficulty,
         )
         data = await self._http.post("/init", body=body)
         return InitResult.from_dict(data)

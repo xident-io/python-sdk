@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import json
+import os
 import re
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -22,6 +23,11 @@ import pytest
 
 import xident
 from xident._config import SDK_VERSION, Config
+
+#: Env var the release workflow injects with the pushed git tag
+#: (`github.ref_name`, e.g. "v2.0.0"). Unset outside a release, so the guard
+#: below has nothing to compare and skips.
+RELEASE_VERSION_ENV = "XIDENT_RELEASE_VERSION"
 
 PYPROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 REPO_ROOT = PYPROJECT.parent
@@ -140,3 +146,30 @@ class TestVersionIsExposedConsistently:
 
     def test_version_is_exported(self) -> None:
         assert "__version__" in xident.__all__
+
+
+class TestSDKVersionMatchesReleaseTag:
+    """Fails a release whose git tag disagrees with SDK_VERSION.
+
+    Mirrors go-sdk's ``TestSDKVersionMatchesReleaseTag``: the tag is INJECTED
+    by the release workflow (`github.ref_name`, no git history needed) rather
+    than discovered by shelling out to git, because a build from a source
+    tarball (no `.git` directory -- e.g. a `pip download` sdist) would fail a
+    check that tried to read the tag itself, on exactly the artifact that
+    matters. Outside a release the env var is unset and this test skips --
+    there is no tag yet to compare against.
+    """
+
+    def test_tag_matches_sdk_version(self) -> None:
+        tag = os.environ.get(RELEASE_VERSION_ENV)
+        if not tag:
+            pytest.skip(
+                f"{RELEASE_VERSION_ENV} is unset -- this guard runs only on a tag push "
+                "(see .github/workflows/release.yml)"
+            )
+
+        want = tag.removeprefix("v")
+        assert want == SDK_VERSION, (
+            f"SDK_VERSION is {SDK_VERSION!r} but the release tag is {tag!r}. "
+            f"Set SDK_VERSION in _config.py to {want!r}, or re-cut the tag to match."
+        )
