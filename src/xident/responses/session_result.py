@@ -1,9 +1,12 @@
 """Verification session result.
 
-Contains the full session state including liveness, age, and OCR results.
-Use the helper methods and properties to check the verification outcome.
-
-Mirrors the PHP SDK's SessionResult exactly: same fields, same helpers.
+Mirrors the v1 tenant result contract -- the frozen `data` shape of
+`GET /result/{token}`: `token, status, verified, reason, verification_mode,
+external_user_id, checks{liveness, age, document, face_match}, created_at,
+completed_at, expires_at`. That contract is additive-only (see the golden
+fixture `tests/testdata/tenant_result_v1.golden.json`, copied byte-for-byte
+from the API repo), so `from_dict` stays as tolerant of unrecognised or
+missing keys as it always was.
 """
 
 from __future__ import annotations
@@ -15,55 +18,173 @@ from .._types import SessionStatus
 
 
 @dataclass(frozen=True)
-class SessionResult:
-    """Verification session result.
-
-    Contains the full session state including liveness, age, and OCR results.
-    Use the helper methods to check the verification outcome.
+class LivenessCheck:
+    """Outcome of the liveness check.
 
     Attributes:
-        id: Session UUID.
+        performed: Whether the check ran at all.
+        passed: Whether it passed. Meaningless if ``performed`` is False.
+    """
+
+    performed: bool = False
+    passed: bool = False
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> LivenessCheck:
+        data = data or {}
+        return cls(
+            performed=bool(data.get("performed", False)),
+            passed=bool(data.get("passed", False)),
+        )
+
+
+@dataclass(frozen=True)
+class AgeCheck:
+    """Outcome of the age check.
+
+    Attributes:
+        performed: Whether the check ran at all.
+        passed: Whether it passed. Meaningless if ``performed`` is False.
+        gate: The age threshold (12, 15, 18, 21, 25) it was checked against,
+            or None if not performed.
+    """
+
+    performed: bool = False
+    passed: bool = False
+    gate: int | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> AgeCheck:
+        data = data or {}
+        gate_raw = data.get("gate")
+        return cls(
+            performed=bool(data.get("performed", False)),
+            passed=bool(data.get("passed", False)),
+            gate=int(gate_raw) if gate_raw is not None else None,
+        )
+
+
+@dataclass(frozen=True)
+class DocumentCheck:
+    """Outcome of the document verification check.
+
+    Attributes:
+        performed: Whether the check ran at all.
+        passed: Whether it passed. Meaningless if ``performed`` is False.
+        document_type: e.g. "passport", "drivers_license", or None.
+        country: ISO 3166-1 alpha-2 issuing country, or None.
+    """
+
+    performed: bool = False
+    passed: bool = False
+    document_type: str | None = None
+    country: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> DocumentCheck:
+        data = data or {}
+        return cls(
+            performed=bool(data.get("performed", False)),
+            passed=bool(data.get("passed", False)),
+            document_type=data.get("document_type"),
+            country=data.get("country"),
+        )
+
+
+@dataclass(frozen=True)
+class FaceMatchCheck:
+    """Outcome of the face-match check (selfie vs. document photo).
+
+    Attributes:
+        performed: Whether the check ran at all.
+        passed: Whether it passed. Meaningless if ``performed`` is False.
+    """
+
+    performed: bool = False
+    passed: bool = False
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> FaceMatchCheck:
+        data = data or {}
+        return cls(
+            performed=bool(data.get("performed", False)),
+            passed=bool(data.get("passed", False)),
+        )
+
+
+@dataclass(frozen=True)
+class Checks:
+    """The four checks a verification session can run.
+
+    Any check not required by the session's verification path reports
+    ``performed=False`` rather than being omitted -- always safe to read
+    every field without a None-check first.
+    """
+
+    liveness: LivenessCheck = field(default_factory=LivenessCheck)
+    age: AgeCheck = field(default_factory=AgeCheck)
+    document: DocumentCheck = field(default_factory=DocumentCheck)
+    face_match: FaceMatchCheck = field(default_factory=FaceMatchCheck)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> Checks:
+        data = data or {}
+        return cls(
+            liveness=LivenessCheck.from_dict(data.get("liveness")),
+            age=AgeCheck.from_dict(data.get("age")),
+            document=DocumentCheck.from_dict(data.get("document")),
+            face_match=FaceMatchCheck.from_dict(data.get("face_match")),
+        )
+
+
+@dataclass(frozen=True)
+class SessionResult:
+    """Verification session result -- the v1 tenant result contract.
+
+    Attributes:
+        token: The result token (``xtk_`` prefixed). Primary identifier; use
+            this, not the deprecated :attr:`id` alias.
         status: Current session status.
-        liveness_result: Liveness check outcome dict, or None.
-        age_result: Age verification outcome dict, or None.
-        ocr_result: Document OCR outcome dict, or None.
-        face_match_result: Face matching outcome dict, or None.
-        ocr_task_id: Async OCR task identifier, or None.
-        country_code: ISO 3166-1 alpha-2 country code, or None.
-        regime: Applied verification regime, or None.
-        min_age: Required minimum age threshold, or None.
-        external_user_id: Your application's user identifier, or None.
-        required_methods: List of required verification methods, or None.
-        remaining_attempts: Number of remaining retry attempts, or None.
-        created_at: ISO 8601 timestamp of session creation.
-        started_at: ISO 8601 timestamp of session start, or None.
-        completed_at: ISO 8601 timestamp of session completion, or None.
-        expires_at: ISO 8601 timestamp of session expiry, or None.
+        verified: The pass/fail verdict as a plain bool. Prefer
+            :meth:`is_verified`, which reads ``status`` and is unaffected by
+            this field also being present -- they always agree in practice, but
+            ``status`` is the field every helper on this class is defined
+            against.
         reason: Why a non-success terminal status came out that way; empty
             when ``status`` is SUCCESS. Known values: ``age_below_threshold``,
             ``dob_unreadable``, ``face_mismatch``, ``face_not_detected``,
             ``docverify_reject``, ``blacklist_match``. Treat the set as open --
             new reasons may be added, so always handle a default.
+        verification_mode: How the session was verified, e.g. "full",
+            "document", "facial". See :meth:`method`.
+        external_user_id: Your application's user identifier, or None.
+        checks: The four checks the session ran (liveness, age, document,
+            face_match) -- see :class:`Checks`.
+        created_at: ISO 8601 timestamp of session creation.
+        completed_at: ISO 8601 timestamp of session completion, or None.
+        expires_at: ISO 8601 timestamp of session expiry, or None.
     """
 
-    id: str
+    token: str
     status: SessionStatus
-    liveness_result: dict[str, Any] | None = None
-    age_result: dict[str, Any] | None = None
-    ocr_result: dict[str, Any] | None = None
-    face_match_result: dict[str, Any] | None = None
-    ocr_task_id: str | None = None
-    country_code: str | None = None
-    regime: str | None = None
-    min_age: int | None = None
+    verified: bool = False
+    reason: str = ""
+    verification_mode: str | None = None
     external_user_id: str | None = None
-    required_methods: list[str] | None = field(default=None)
-    remaining_attempts: int | None = None
+    checks: Checks = field(default_factory=Checks)
     created_at: str = ""
-    started_at: str | None = None
     completed_at: str | None = None
     expires_at: str | None = None
-    reason: str = ""
+
+    @property
+    def id(self) -> str:
+        """Deprecated alias of :attr:`token`.
+
+        .. deprecated::
+            The wire field was renamed from ``id`` to ``token`` when the
+            tenant result contract was frozen at v1. Use :attr:`token`.
+        """
+        return self.token
 
     def is_verified(self) -> bool:
         """The user PASSED verification. This is the check to gate on.
@@ -97,26 +218,30 @@ class SessionResult:
         return self.status.is_terminal
 
     def age_bracket(self) -> int | None:
-        """The verified age bracket (12, 15, 18, 21, 25) or None if not yet determined."""
-        if self.age_result is None:
-            return None
-        bracket = self.age_result.get("verified_bracket")
-        if bracket is not None:
-            return int(bracket)
-        estimated = self.age_result.get("estimated_age")
-        if estimated is not None:
-            return int(estimated)
+        """The verified age bracket (12, 15, 18, 21, 25), or None.
+
+        None whenever the age check did not pass -- whether because it was
+        never performed, or because it ran and failed. A ``gate`` value on a
+        failed check describes what was tested against, not a verified fact,
+        so it is never surfaced here.
+        """
+        if self.checks.age.passed:
+            return self.checks.age.gate
         return None
 
     def method(self) -> str | None:
-        """How the age was verified (e.g. "ml_fast", "ocr", "self_declaration")."""
-        if self.age_result is None:
-            return None
-        return self.age_result.get("method")
+        """How the session was verified (e.g. "full", "document", "facial")."""
+        return self.verification_mode
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SessionResult:
-        """Create a SessionResult from an API response data dict."""
+        """Create a SessionResult from an API response data dict.
+
+        Tolerant of missing and unrecognised keys: an old-shaped payload (this
+        SDK's pre-2.0.0 response, or a not-yet-migrated deployment) still
+        parses without raising, so ``.get()`` is used throughout rather than
+        direct indexing.
+        """
         # SessionStatus._missing_ maps a legacy "completed" from a
         # pre-July-2026 deployment onto SUCCESS. An unrecognised value still
         # raises and falls back to PENDING, which is neither terminal nor
@@ -129,28 +254,18 @@ class SessionResult:
         except ValueError:
             status = SessionStatus.PENDING
 
-        min_age_raw = data.get("min_age")
-        remaining_raw = data.get("remaining_attempts")
-
-        # The /result DTO returns the session identifier as "token" (xtk_...),
-        # not "id". Prefer "token"; fall back to "id" for backwards compatibility.
+        # The v1 contract's primary identifier is "token" (xtk_...). "id" is
+        # the pre-v1 field name -- kept as a fallback so an old fixture or a
+        # lagging deployment still resolves an identifier.
         return cls(
-            id=str(data.get("token") or data.get("id", "")),
+            token=str(data.get("token") or data.get("id", "")),
             status=status,
-            liveness_result=data.get("liveness_result"),
-            age_result=data.get("age_result"),
-            ocr_result=data.get("ocr_result"),
-            face_match_result=data.get("face_match_result"),
-            ocr_task_id=data.get("ocr_task_id"),
-            country_code=data.get("country_code"),
-            regime=data.get("regime"),
-            min_age=int(min_age_raw) if min_age_raw is not None else None,
+            verified=bool(data.get("verified", False)),
+            reason=str(data.get("reason", "")),
+            verification_mode=data.get("verification_mode"),
             external_user_id=data.get("external_user_id"),
-            required_methods=data.get("required_methods"),
-            remaining_attempts=int(remaining_raw) if remaining_raw is not None else None,
+            checks=Checks.from_dict(data.get("checks")),
             created_at=str(data.get("created_at", "")),
-            started_at=data.get("started_at"),
             completed_at=data.get("completed_at"),
             expires_at=data.get("expires_at"),
-            reason=str(data.get("reason", "")),
         )

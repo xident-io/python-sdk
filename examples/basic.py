@@ -52,8 +52,9 @@ try:
 
     if session.is_verified():
         print(f"Verified! Age bracket: {session.age_bracket()}+")
-        print(f"Method: {session.method()}")
-        print(f"Country: {session.country_code}")
+        print(f"Method: {session.method()}")  # "full", "document", "facial", ...
+        if session.checks.document.performed:
+            print(f"Document country: {session.checks.document.country}")
     elif session.is_failed():
         print("Verification failed")
     elif session.is_pending():

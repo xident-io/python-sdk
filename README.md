@@ -34,6 +34,9 @@ if session.is_verified():
     print(f"Verified! Age: {session.age_bracket()}+")
 ```
 
+> **v2.0.0 changed the shape of the verification result.** See
+> [v2 breaking changes](#v2-breaking-changes) below before upgrading.
+
 ## Async Support
 
 ```python
@@ -76,11 +79,18 @@ result = client.verification.init(
     locale="de",             # Widget locale
     metadata="custom_data",  # Opaque metadata string
     purpose="age_verification",  # "age_verification" (default) or "id_verification"
+    verification_mode="document",  # Force document + face match, skip on-device age estimation
+    liveness_difficulty="hard",    # "easy", "medium", or "hard" -- more liveness actions
 )
 
 print(result.token)       # "xit_abc123" (init token, 10-minute TTL)
 print(result.verify_url)  # Full URL to redirect user to
 ```
+
+`verification_mode` composes with `min_age` rather than replacing it --
+`verification_mode="document"` with `min_age=21` still enforces 21, it just
+insists the proof be a document instead of letting the rule engine pick
+on-device age estimation.
 
 After verification the widget redirects the browser back to `callback_url` with
 query parameters: `status` (`success` | `failed` | `canceled` — the same three
@@ -99,10 +109,24 @@ session.is_failed()      # True if verification failed
 session.is_pending()     # True if still in progress
 session.is_terminal()    # True if no more changes possible
 
-session.age_bracket()    # 18 (verified age threshold)
-session.method()         # "ml_fast", "ocr", etc.
-session.country_code     # "US", "DE", etc.
+session.age_bracket()    # 18 (verified age threshold) or None
+session.method()         # "full", "document", "facial", etc. (== verification_mode)
 session.status           # SessionStatus.SUCCESS
+session.reason           # "" on success; e.g. "age_below_threshold" on failure
+session.token            # "xtk_abc123" -- the result token, primary identifier
+
+# Full detail on what ran and what passed:
+session.checks.liveness.performed   # bool
+session.checks.liveness.passed      # bool
+session.checks.age.performed        # bool
+session.checks.age.passed           # bool
+session.checks.age.gate             # 12 / 15 / 18 / 21 / 25, or None
+session.checks.document.performed   # bool
+session.checks.document.passed      # bool
+session.checks.document.document_type  # "passport", "drivers_license", or None
+session.checks.document.country     # ISO 3166-1 alpha-2, or None
+session.checks.face_match.performed  # bool
+session.checks.face_match.passed     # bool
 ```
 
 ## Webhooks
@@ -226,6 +250,44 @@ See the `examples/` directory for complete integrations:
 - **[flask_app.py](examples/flask_app.py)** -- Flask
 - **[django_view.py](examples/django_view.py)** -- Django
 - **[fastapi_app.py](examples/fastapi_app.py)** -- FastAPI (async)
+
+## v2 breaking changes
+
+`2.0.0` migrates `SessionResult` (what `get_result()` returns) onto the
+**frozen v1 tenant result contract** -- the same shape the Go API, and every
+other Xident SDK, now return. It replaces the old loose "blob" fields with
+typed, always-present `checks`.
+
+**What changed:**
+
+- `session.id` -> `session.token`. `.id` still works as a **deprecated**
+  read-only alias -- it is not removed, just superseded.
+- `session.liveness_result`, `session.age_result`, `session.ocr_result`,
+  `session.face_match_result` (untyped dicts) -> `session.checks.liveness`,
+  `session.checks.age`, `session.checks.document`, `session.checks.face_match`
+  (typed, always present, `performed`/`passed` on every one).
+- `session.age_bracket()` now reads `checks.age.gate` -- and only when
+  `checks.age.passed` is True. Previously it read `age_result["verified_bracket"]`
+  or `age_result["estimated_age"]`.
+- `session.method()` now returns `verification_mode` directly (e.g. `"full"`,
+  `"document"`, `"facial"`) instead of the old `age_result["method"]` values
+  (`"ml_fast"`, `"ocr"`, `"self_declaration"`).
+- `session.country_code`, `session.regime`, `session.min_age`,
+  `session.required_methods`, `session.remaining_attempts`,
+  `session.ocr_task_id`, `session.started_at` are **removed** -- they were
+  never part of the tenant-facing result contract. Document country is now
+  `session.checks.document.country`.
+- `client.verification.init()` gained two new optional keyword arguments:
+  `verification_mode` and `liveness_difficulty` (see
+  [Create Init Token](#create-init-token) above). This closes a gap where the
+  SDK accepted `verification_mode` in name only -- 1.x parsed it but never sent
+  it to the API.
+
+**What did not change:** `session.is_verified()`, `session.is_failed()`,
+`session.is_pending()`, `session.is_terminal()`, `session.status`,
+`session.reason`, `session.external_user_id`, `session.created_at`,
+`session.completed_at`, `session.expires_at`. `session.is_completed()` remains
+as a deprecated alias of `is_verified()`.
 
 ## Development
 

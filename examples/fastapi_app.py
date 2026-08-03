@@ -27,12 +27,19 @@ async def shutdown():
 
 @app.get("/verify")
 async def start_verification(request: Request):
-    """Start verification -- redirect user to Xident widget."""
+    """Start verification -- redirect user to Xident widget.
+
+    This pilot integration forces the document path: `verification_mode=
+    "document"` skips the rule engine's on-device age-estimation option and
+    always requires document + face match. Drop the argument (or pass
+    "auto") to let the rule engine choose.
+    """
     try:
         result = await xident_client.verification.init(
             callback_url=str(request.url_for("verification_callback")),
             min_age=18,
             theme="system",
+            verification_mode="document",
         )
         return RedirectResponse(url=result.verify_url)
     except XidentError as e:
@@ -49,8 +56,8 @@ async def verification_callback(token: str):
             return {
                 "status": "verified",
                 "age_bracket": session.age_bracket(),
-                "method": session.method(),
-                "country": session.country_code,
+                "method": session.method(),  # "full", "document", "facial", ...
+                "document_country": session.checks.document.country,
             }
         elif session.is_failed():
             return {"status": "failed"}

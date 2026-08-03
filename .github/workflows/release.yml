@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  version-guard:
+    name: Version guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      # This is the only moment where the tag and the source tree are both
+      # known, which is why the SDK_VERSION/tag comparison has to happen
+      # here.
+      #
+      # github.ref_name is handed to us by GitHub, so it needs no git
+      # history: the default shallow, tagless checkout above is enough. A
+      # test that instead ran `git describe` would fail here and pass on a
+      # laptop.
+      #
+      # The comparison itself lives in TestSDKVersionMatchesReleaseTag rather
+      # than in this file, so the rule is Python code under review, not
+      # shell.
+      - name: SDK_VERSION must match the tag
+        env:
+          XIDENT_RELEASE_VERSION: ${{ github.ref_name }}
+        run: python -m pytest tests/test_version.py -k TestSDKVersionMatchesReleaseTag -v
+
+      - name: Full test suite
+        run: python -m pytest tests/ -v --tb=short
+
+      - name: Build distribution
+        run: |
+          pip install build
+          python -m build

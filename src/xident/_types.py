@@ -94,6 +94,14 @@ class InitParams(TypedDict, total=False):
         locale: Widget locale (e.g. "en", "de", "fr").
         metadata: Opaque string stored with the session.
         purpose: Verification purpose ("age_verification" or "id_verification").
+        verification_mode: Overrides the rule engine's choice of methods for
+            this session: "auto" (default), "document" to force document +
+            face match, or "facial" to force on-device age estimation.
+            Composes with ``min_age`` rather than replacing it -- "document"
+            with ``min_age`` 21 still enforces 21, it just insists the proof
+            be a document.
+        liveness_difficulty: Overrides the number of liveness actions the
+            widget requires: "easy", "medium", or "hard".
     """
 
     callback_url: str
@@ -105,6 +113,8 @@ class InitParams(TypedDict, total=False):
     locale: str
     metadata: str
     purpose: str
+    verification_mode: str
+    liveness_difficulty: str
 
 
 class _APIResponseData(TypedDict, total=False):
