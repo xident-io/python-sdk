@@ -51,10 +51,15 @@ class Blacklist:
     def add_by_session(self, *, session_token: str, reason: str) -> str:
         """Blacklist the person from one of YOUR verification sessions.
 
-        The server lifts the session's selfie and blacklists that face.
-        Works within the 24h document-retention window for terminal
-        sessions that captured a selfie. Asynchronous -- the entry appears
-        in ``list()`` once processed.
+        The server derives the face from the session and blacklists it --
+        you never handle the image. Works on terminal DOCUMENT verification
+        sessions for 12 months after the session; the face embedding is
+        retained for that period and then permanently deleted. Asynchronous
+        -- the entry appears in ``list()`` once processed.
+
+        A browser-only (Path A) session never captured a face and is
+        rejected with ``SESSION_HAS_NO_FACE_DATA``; one past its retention
+        window with ``SESSION_FACE_DATA_EXPIRED``.
 
         Args:
             session_token: The verification session token (xtk_...).
@@ -150,10 +155,15 @@ class AsyncBlacklist:
     async def add_by_session(self, *, session_token: str, reason: str) -> str:
         """Blacklist the person from one of YOUR verification sessions (async).
 
-        The server lifts the session's selfie and blacklists that face.
-        Works within the 24h document-retention window for terminal
-        sessions that captured a selfie. Asynchronous -- the entry appears
-        in ``list()`` once processed.
+        The server derives the face from the session and blacklists it --
+        you never handle the image. Works on terminal DOCUMENT verification
+        sessions for 12 months after the session; the face embedding is
+        retained for that period and then permanently deleted. Asynchronous
+        -- the entry appears in ``list()`` once processed.
+
+        A browser-only (Path A) session never captured a face and is
+        rejected with ``SESSION_HAS_NO_FACE_DATA``; one past its retention
+        window with ``SESSION_FACE_DATA_EXPIRED``.
 
         Args:
             session_token: The verification session token (xtk_...).
