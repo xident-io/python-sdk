@@ -27,7 +27,7 @@ API_VERSION = "verify/v1"
 #: hardcoded fallback -- which is the second number this change exists to
 #: remove. Installed metadata also goes stale against an editable checkout
 #: until the next reinstall.
-SDK_VERSION = "2.0.0"
+SDK_VERSION = "2.1.0"
 
 
 @dataclass(frozen=True)

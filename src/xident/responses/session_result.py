@@ -2,8 +2,8 @@
 
 Mirrors the v1 tenant result contract -- the frozen `data` shape of
 `GET /result/{token}`: `token, status, verified, reason, verification_mode,
-external_user_id, checks{liveness, age, document, face_match}, created_at,
-completed_at, expires_at`. That contract is additive-only (see the golden
+ip_country, external_user_id, checks{liveness, age, document, face_match},
+created_at, completed_at, expires_at`. That contract is additive-only (see the golden
 fixture `tests/testdata/tenant_result_v1.golden.json`, copied byte-for-byte
 from the API repo), so `from_dict` stays as tolerant of unrecognised or
 missing keys as it always was.
@@ -157,6 +157,11 @@ class SessionResult:
             new reasons may be added, so always handle a default.
         verification_mode: How the session was verified, e.g. "full",
             "document", "facial". See :meth:`method`.
+        ip_country: ISO 3166-1 alpha-2 country the end user connected from,
+            IP-derived, or None on sessions created before 2026-08-04 or
+            where IP geolocation failed. Distinct from
+            ``checks.document.country``, which is the document's issuing
+            country -- the two can legitimately differ.
         external_user_id: Your application's user identifier, or None.
         checks: The four checks the session ran (liveness, age, document,
             face_match) -- see :class:`Checks`.
@@ -170,6 +175,7 @@ class SessionResult:
     verified: bool = False
     reason: str = ""
     verification_mode: str | None = None
+    ip_country: str | None = None
     external_user_id: str | None = None
     checks: Checks = field(default_factory=Checks)
     created_at: str = ""
@@ -263,6 +269,7 @@ class SessionResult:
             verified=bool(data.get("verified", False)),
             reason=str(data.get("reason", "")),
             verification_mode=data.get("verification_mode"),
+            ip_country=data.get("ip_country"),
             external_user_id=data.get("external_user_id"),
             checks=Checks.from_dict(data.get("checks")),
             created_at=str(data.get("created_at", "")),

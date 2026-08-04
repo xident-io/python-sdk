@@ -201,6 +201,7 @@ class TestSessionResultGolden:
         assert result.verified is True
         assert result.reason == ""
         assert result.verification_mode == "full"
+        assert result.ip_country == "DE"
         assert result.external_user_id == "cust-4711"
         assert result.created_at == "2026-08-03T10:00:00Z"
         assert result.completed_at == "2026-08-03T10:02:30Z"
@@ -256,6 +257,7 @@ class TestSessionResult:
         assert result.verified is False
         assert result.reason == ""
         assert result.verification_mode is None
+        assert result.ip_country is None
         assert result.external_user_id is None
         assert result.completed_at is None
         assert result.expires_at is None
