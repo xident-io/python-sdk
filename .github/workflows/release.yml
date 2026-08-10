@@ -47,3 +47,36 @@ jobs:
         run: |
           pip install build
           python -m build
+
+  publish:
+    name: Publish to PyPI
+    needs: version-guard
+    runs-on: ubuntu-latest
+    permissions:
+      # Trusted Publishing: PyPI verifies a short-lived OIDC token minted by
+      # GitHub for this exact repo+workflow, so there is NO API token to store,
+      # scope wrongly, or leak. Chosen over PYPI_API_TOKEN deliberately — the
+      # npm side of this same release lost two runs to a mis-scoped token.
+      #
+      # One-time setup on pypi.org: Manage project -> Publishing -> add a
+      # trusted publisher for xident-io/python-sdk, workflow release.yml.
+      # Optionally bind it to a GitHub environment and add `environment: pypi`
+      # here; omitted so there is one place to misconfigure instead of two.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Rebuilt rather than carried from version-guard as an artifact: a fresh
+      # checkout is one less way for what ships to differ from what was tested.
+      - name: Build distribution
+        run: |
+          pip install build
+          python -m build
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
