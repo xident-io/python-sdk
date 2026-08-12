@@ -160,7 +160,7 @@ class SessionResult:
             ``"age_check"`` (browser-only: liveness and/or age bracket, no
             document), ``"xident_id"`` (returning user reused a bracket on
             their Xident account) or ``"eu_wallet"``. Treat the set as open.
-            NOT the ``verification_type`` *request* parameter
+            NOT the ``verification_mode`` *request* parameter
             (``auto``/``document``/``facial``), which selects methods up
             front. See :meth:`method`.
         ip_country: ISO 3166-1 alpha-2 country the end user connected from,
