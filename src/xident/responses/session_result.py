@@ -1,7 +1,7 @@
 """Verification session result.
 
 Mirrors the v1 tenant result contract -- the frozen `data` shape of
-`GET /result/{token}`: `token, status, verified, reason, verification_mode,
+`GET /result/{token}`: `token, status, verified, reason, verification_type,
 ip_country, external_user_id, checks{liveness, age, document, face_match},
 created_at, completed_at, expires_at`. That contract is additive-only (see the golden
 fixture `tests/testdata/tenant_result_v1.golden.json`, copied byte-for-byte
@@ -155,12 +155,12 @@ class SessionResult:
             ``dob_unreadable``, ``face_mismatch``, ``face_not_detected``,
             ``docverify_reject``, ``blacklist_match``. Treat the set as open --
             new reasons may be added, so always handle a default.
-        verification_mode: Which PATH produced the verdict -- ``"full"``
+        verification_type: Which PATH produced the verdict -- ``"full"``
             (document path: OCR and/or document-to-selfie face match),
             ``"age_check"`` (browser-only: liveness and/or age bracket, no
             document), ``"xident_id"`` (returning user reused a bracket on
             their Xident account) or ``"eu_wallet"``. Treat the set as open.
-            NOT the ``verification_mode`` *request* parameter
+            NOT the ``verification_type`` *request* parameter
             (``auto``/``document``/``facial``), which selects methods up
             front. See :meth:`method`.
         ip_country: ISO 3166-1 alpha-2 country the end user connected from,
@@ -180,7 +180,7 @@ class SessionResult:
     status: SessionStatus
     verified: bool = False
     reason: str = ""
-    verification_mode: str | None = None
+    verification_type: str | None = None
     ip_country: str | None = None
     external_user_id: str | None = None
     checks: Checks = field(default_factory=Checks)
@@ -243,7 +243,7 @@ class SessionResult:
 
     def method(self) -> str | None:
         """How the session was verified (e.g. "full", "document", "facial")."""
-        return self.verification_mode
+        return self.verification_type
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SessionResult:
@@ -274,7 +274,7 @@ class SessionResult:
             status=status,
             verified=bool(data.get("verified", False)),
             reason=str(data.get("reason", "")),
-            verification_mode=data.get("verification_mode"),
+            verification_type=data.get("verification_type"),
             ip_country=data.get("ip_country"),
             external_user_id=data.get("external_user_id"),
             checks=Checks.from_dict(data.get("checks")),

@@ -200,7 +200,7 @@ class TestSessionResultGolden:
         assert result.status == SessionStatus.SUCCESS
         assert result.verified is True
         assert result.reason == ""
-        assert result.verification_mode == "full"
+        assert result.verification_type == "full"
         assert result.ip_country == "DE"
         assert result.external_user_id == "cust-4711"
         assert result.created_at == "2026-08-03T10:00:00Z"
@@ -256,7 +256,7 @@ class TestSessionResult:
         assert result.status == SessionStatus.PENDING
         assert result.verified is False
         assert result.reason == ""
-        assert result.verification_mode is None
+        assert result.verification_type is None
         assert result.ip_country is None
         assert result.external_user_id is None
         assert result.completed_at is None
@@ -345,9 +345,9 @@ class TestSessionResult:
         result = SessionResult.from_dict({"token": "xtk_s", "status": "pending"})
         assert result.age_bracket() is None
 
-    def test_method_returns_verification_mode(self) -> None:
+    def test_method_returns_verification_type(self) -> None:
         result = SessionResult.from_dict(
-            {"token": "xtk_s", "status": "success", "verification_mode": "document"}
+            {"token": "xtk_s", "status": "success", "verification_type": "document"}
         )
         assert result.method() == "document"
 

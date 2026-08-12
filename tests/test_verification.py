@@ -146,7 +146,7 @@ class TestVerification:
             {
                 "token": "xtk_abc123",
                 "status": "success",
-                "verification_mode": "facial",
+                "verification_type": "age_check",
                 "checks": {"age": {"performed": True, "passed": True, "gate": 18}},
                 "created_at": "2026-01-01T00:00:00Z",
             }
@@ -159,7 +159,7 @@ class TestVerification:
         assert result.status == xident.SessionStatus.COMPLETED
         assert result.is_verified()
         assert result.age_bracket() == 18
-        assert result.method() == "facial"
+        assert result.method() == "age_check"
 
     def test_get_result_empty_token_raises(self, mock_transport: MockTransport) -> None:
         client = xident.Xident(api_key="sk_test_123", transport=mock_transport)
