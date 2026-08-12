@@ -155,8 +155,14 @@ class SessionResult:
             ``dob_unreadable``, ``face_mismatch``, ``face_not_detected``,
             ``docverify_reject``, ``blacklist_match``. Treat the set as open --
             new reasons may be added, so always handle a default.
-        verification_mode: How the session was verified, e.g. "full",
-            "document", "facial". See :meth:`method`.
+        verification_mode: Which PATH produced the verdict -- ``"full"``
+            (document path: OCR and/or document-to-selfie face match),
+            ``"age_check"`` (browser-only: liveness and/or age bracket, no
+            document), ``"xident_id"`` (returning user reused a bracket on
+            their Xident account) or ``"eu_wallet"``. Treat the set as open.
+            NOT the ``verification_mode`` *request* parameter
+            (``auto``/``document``/``facial``), which selects methods up
+            front. See :meth:`method`.
         ip_country: ISO 3166-1 alpha-2 country the end user connected from,
             IP-derived, or None on sessions created before 2026-08-04 or
             where IP geolocation failed. Distinct from

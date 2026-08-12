@@ -110,7 +110,7 @@ session.is_pending()     # True if still in progress
 session.is_terminal()    # True if no more changes possible
 
 session.age_bracket()    # 18 (verified age threshold) or None
-session.method()         # "full", "document", "facial", etc. (== verification_mode)
+session.method()         # "full" | "age_check" | "xident_id" | "eu_wallet"
 session.status           # SessionStatus.SUCCESS
 session.reason           # "" on success; e.g. "age_below_threshold" on failure
 session.token            # "xtk_abc123" -- the result token, primary identifier
@@ -269,7 +269,7 @@ typed, always-present `checks`.
 - `session.age_bracket()` now reads `checks.age.gate` -- and only when
   `checks.age.passed` is True. Previously it read `age_result["verified_bracket"]`
   or `age_result["estimated_age"]`.
-- `session.method()` now returns `verification_mode` directly (e.g. `"full"`,
+- `session.method()` now returns `verification_mode` directly (`"full"`, `"age_check"`, `"xident_id"`, `"eu_wallet"`,
   `"document"`, `"facial"`) instead of the old `age_result["method"]` values
   (`"ml_fast"`, `"ocr"`, `"self_declaration"`).
 - `session.country_code`, `session.regime`, `session.min_age`,
