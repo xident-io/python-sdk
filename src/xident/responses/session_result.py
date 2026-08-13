@@ -113,8 +113,87 @@ class FaceMatchCheck:
 
 
 @dataclass(frozen=True)
+class EUWalletCheck:
+    """Outcome of an EU Digital Identity Wallet presentation.
+
+    Sent by the API since 2026-08-06. This SDK silently discarded it until
+    3.1.0: ``from_dict`` ignores unrecognised keys (deliberately, so an
+    additive API change never raises), and the golden fixture was a stale copy
+    that did not contain the field either -- so the fixture and the dataclass
+    agreed with each other while both disagreed with the API.
+
+    Attributes:
+        performed: Whether a wallet presentation was made.
+        passed: Whether it verified. Meaningless if ``performed`` is False.
+    """
+
+    performed: bool = False
+    passed: bool = False
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> EUWalletCheck:
+        data = data or {}
+        return cls(
+            performed=bool(data.get("performed", False)),
+            passed=bool(data.get("passed", False)),
+        )
+
+
+@dataclass(frozen=True)
+class AMLCheck:
+    """Outcome of sanctions/PEP screening of the extracted identity.
+
+    Document path only, and ``performed`` is False until screening is enabled
+    for the tenant. Also sent since 2026-08-06 and also discarded until 3.1.0
+    -- see :class:`EUWalletCheck`.
+
+    Attributes:
+        performed: Whether screening ran.
+        passed: Whether it cleared. Meaningless if ``performed`` is False.
+    """
+
+    performed: bool = False
+    passed: bool = False
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> AMLCheck:
+        data = data or {}
+        return cls(
+            performed=bool(data.get("performed", False)),
+            passed=bool(data.get("passed", False)),
+        )
+
+
+@dataclass(frozen=True)
+class Risk:
+    """The session's risk assessment.
+
+    An object rather than a bare string, mirroring the wire, so future signals
+    get a home without a breaking change.
+
+    Attributes:
+        band: Coarse risk bucket -- ``"low"``, ``"medium"`` or ``"high"``.
+            Treat the set as open and handle an unrecognised value.
+    """
+
+    band: str = ""
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> Risk | None:
+        """Return None for an absent risk object.
+
+        The field is omitempty on the wire, so absent means "no risk signals",
+        which is materially different from a band of "" -- callers branch on
+        ``result.risk is None``.
+        """
+        if not data:
+            return None
+        return cls(band=str(data.get("band", "")))
+
+
+@dataclass(frozen=True)
 class Checks:
-    """The four checks a verification session can run.
+    """The six checks a verification session can run.
 
     Any check not required by the session's verification path reports
     ``performed=False`` rather than being omitted -- always safe to read
@@ -125,6 +204,8 @@ class Checks:
     age: AgeCheck = field(default_factory=AgeCheck)
     document: DocumentCheck = field(default_factory=DocumentCheck)
     face_match: FaceMatchCheck = field(default_factory=FaceMatchCheck)
+    eu_wallet: EUWalletCheck = field(default_factory=EUWalletCheck)
+    aml: AMLCheck = field(default_factory=AMLCheck)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> Checks:
@@ -134,6 +215,8 @@ class Checks:
             age=AgeCheck.from_dict(data.get("age")),
             document=DocumentCheck.from_dict(data.get("document")),
             face_match=FaceMatchCheck.from_dict(data.get("face_match")),
+            eu_wallet=EUWalletCheck.from_dict(data.get("eu_wallet")),
+            aml=AMLCheck.from_dict(data.get("aml")),
         )
 
 
@@ -184,6 +267,7 @@ class SessionResult:
     ip_country: str | None = None
     external_user_id: str | None = None
     checks: Checks = field(default_factory=Checks)
+    risk: Risk | None = None
     created_at: str = ""
     completed_at: str | None = None
     expires_at: str | None = None
@@ -278,6 +362,7 @@ class SessionResult:
             ip_country=data.get("ip_country"),
             external_user_id=data.get("external_user_id"),
             checks=Checks.from_dict(data.get("checks")),
+            risk=Risk.from_dict(data.get("risk")),
             created_at=str(data.get("created_at", "")),
             completed_at=data.get("completed_at"),
             expires_at=data.get("expires_at"),

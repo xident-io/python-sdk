@@ -16,7 +16,7 @@ from typing import Any
 
 import httpx
 
-from ._config import Config
+from ._config import PINNED_API_VERSION, Config
 from .errors import (
     AuthenticationError,
     NetworkError,
@@ -111,6 +111,12 @@ class SyncHttpClient:
     def _build_default_headers(self, config: Config) -> dict[str, str]:
         headers = {
             "X-API-Key": config.api_key,
+            # getattr with a default rather than a bare attribute read: this
+            # client accepts any config-like object (a subclass, a test double,
+            # a user's own), and throwing on every request because one of them
+            # predates this attribute would be far worse than sending the pinned
+            # default.
+            "X-API-Version": getattr(self._config, "api_version", PINNED_API_VERSION),
             "User-Agent": config.user_agent,
             "Accept": "application/json",
         }
@@ -225,6 +231,12 @@ class AsyncHttpClient:
     def _build_default_headers(self, config: Config) -> dict[str, str]:
         headers = {
             "X-API-Key": config.api_key,
+            # getattr with a default rather than a bare attribute read: this
+            # client accepts any config-like object (a subclass, a test double,
+            # a user's own), and throwing on every request because one of them
+            # predates this attribute would be far worse than sending the pinned
+            # default.
+            "X-API-Version": getattr(self._config, "api_version", PINNED_API_VERSION),
             "User-Agent": config.user_agent,
             "Accept": "application/json",
         }
