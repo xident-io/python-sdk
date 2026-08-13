@@ -32,16 +32,19 @@ from .errors import (
 )
 from .responses import (
     AgeCheck,
+    AMLCheck,
     BlacklistEntry,
     BlacklistPage,
     Checks,
     DocumentCheck,
+    EUWalletCheck,
     Face2FAChallenge,
     Face2FAEnrollment,
     Face2FAStatus,
     FaceMatchCheck,
     InitResult,
     LivenessCheck,
+    Risk,
     SessionResult,
 )
 
@@ -62,6 +65,9 @@ __all__ = [  # noqa: RUF022
     "AgeCheck",
     "DocumentCheck",
     "FaceMatchCheck",
+    "EUWalletCheck",
+    "AMLCheck",
+    "Risk",
     "Face2FAChallenge",
     "Face2FAStatus",
     "Face2FAEnrollment",
