@@ -48,7 +48,7 @@ SDK patch release must never change which API shape a customer receives.
 #: hardcoded fallback -- which is the second number this change exists to
 #: remove. Installed metadata also goes stale against an editable checkout
 #: until the next reinstall.
-SDK_VERSION = "3.0.0"
+SDK_VERSION = "3.1.0"
 
 
 @dataclass(frozen=True)
