@@ -72,8 +72,6 @@ client = Xident(
 result = client.verification.init(
     callback_url="https://example.com/callback",  # Required
     min_age=18,              # Age threshold 1-99 (0-99 when purpose="id_verification")
-    success_url="...",       # Override redirect on success
-    failed_url="...",        # Override redirect on failure
     user_id="user_42",       # Your user identifier
     theme="dark",            # Widget theme (light, dark, system)
     locale="de",             # Widget locale
