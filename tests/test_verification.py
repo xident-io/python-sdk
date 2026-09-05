@@ -231,3 +231,59 @@ class TestAsyncVerification:
 
         with pytest.raises(ValueError, match="Token cannot be empty"):
             await client.verification.get_result("")
+
+
+class TestVerificationDataMatch:
+    """Data match (2026-09-05): ``expected`` goes on the wire as a nested
+    object, ``mismatch_policy`` beside it, and neither is sent when unset."""
+
+    def test_init_sends_expected_nested(self, mock_transport: MockTransport) -> None:
+        mock_transport.queue_success({"token": "xit_dm", "verify_url": "https://v.io"})
+        client = xident.Xident(api_key="sk_test_123", transport=mock_transport)
+
+        client.verification.init(
+            callback_url="https://example.com/cb",
+            purpose="id_verification",
+            expected={"first_name": "Ramin", "date_of_birth": "1985-01-01", "nationality": "IR"},
+            mismatch_policy="review",
+        )
+
+        req = mock_transport.last_request
+        assert req is not None
+        body = json.loads(req.content)
+        assert body["expected"] == {
+            "first_name": "Ramin",
+            "date_of_birth": "1985-01-01",
+            "nationality": "IR",
+        }
+        assert body["mismatch_policy"] == "review"
+
+    def test_init_omits_expected_when_unset(self, mock_transport: MockTransport) -> None:
+        mock_transport.queue_success({"token": "xit_x", "verify_url": "https://v.io"})
+        client = xident.Xident(api_key="sk_test_123", transport=mock_transport)
+
+        client.verification.init(callback_url="https://example.com/cb", min_age=18)
+
+        req = mock_transport.last_request
+        assert req is not None
+        body = json.loads(req.content)
+        assert "expected" not in body
+        assert "mismatch_policy" not in body
+
+    @pytest.mark.asyncio
+    async def test_async_init_sends_expected(self, async_mock_transport: AsyncMockTransport) -> None:
+        async_mock_transport.queue_success({"token": "xit_dm", "verify_url": "https://v.io"})
+        client = xident.AsyncXident(api_key="sk_test_123", transport=async_mock_transport)
+
+        await client.verification.init(
+            callback_url="https://example.com/cb",
+            verification_mode="document",
+            expected={"last_name": "Farmani"},
+        )
+
+        req = async_mock_transport.last_request
+        assert req is not None
+        body = json.loads(req.content)
+        assert body["expected"] == {"last_name": "Farmani"}
+        assert "mismatch_policy" not in body
+

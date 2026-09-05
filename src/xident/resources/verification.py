@@ -6,6 +6,7 @@ Mirrors the PHP SDK's Verification resource exactly.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 from urllib.parse import quote
 
@@ -41,6 +42,8 @@ class Verification:
         purpose: str | None = None,
         verification_mode: str | None = None,
         liveness_difficulty: str | None = None,
+        expected: Mapping[str, str] | None = None,
+        mismatch_policy: str | None = None,
     ) -> InitResult:
         """Create an init token for starting a verification session.
 
@@ -66,6 +69,18 @@ class Verification:
                 just insists the proof be a document.
             liveness_difficulty: Overrides the number of liveness actions the
                 widget requires: "easy", "medium", or "hard".
+            expected: Identity data you already hold about the user, to be
+                checked against the document they present (data match, since
+                2026-09-05). Any subset of ``first_name``, ``last_name``,
+                ``date_of_birth`` (YYYY-MM-DD), ``document_number``,
+                ``nationality`` (ISO alpha-2). Needs a document: pair it with
+                ``purpose="id_verification"`` or ``verification_mode="document"``.
+                The values never reach the browser; the result carries only
+                verdicts, per field, in ``checks.data_match``.
+            mismatch_policy: What a mismatch does. "report" (default):
+                reported in the result, outcome unchanged. "review": any
+                mismatch sends the session to your review queue with reason
+                ``data_mismatch``. Only meaningful with ``expected``.
 
         Returns:
             InitResult with token and verify_url.
@@ -86,6 +101,8 @@ class Verification:
             purpose=purpose,
             verification_mode=verification_mode,
             liveness_difficulty=liveness_difficulty,
+            expected=dict(expected) if expected else None,
+            mismatch_policy=mismatch_policy,
         )
         data = self._http.post("/init", body=body)
         return InitResult.from_dict(data)
@@ -145,6 +162,8 @@ class AsyncVerification:
         purpose: str | None = None,
         verification_mode: str | None = None,
         liveness_difficulty: str | None = None,
+        expected: Mapping[str, str] | None = None,
+        mismatch_policy: str | None = None,
     ) -> InitResult:
         """Create an init token for starting a verification session (async).
 
@@ -170,6 +189,18 @@ class AsyncVerification:
                 just insists the proof be a document.
             liveness_difficulty: Overrides the number of liveness actions the
                 widget requires: "easy", "medium", or "hard".
+            expected: Identity data you already hold about the user, to be
+                checked against the document they present (data match, since
+                2026-09-05). Any subset of ``first_name``, ``last_name``,
+                ``date_of_birth`` (YYYY-MM-DD), ``document_number``,
+                ``nationality`` (ISO alpha-2). Needs a document: pair it with
+                ``purpose="id_verification"`` or ``verification_mode="document"``.
+                The values never reach the browser; the result carries only
+                verdicts, per field, in ``checks.data_match``.
+            mismatch_policy: What a mismatch does. "report" (default):
+                reported in the result, outcome unchanged. "review": any
+                mismatch sends the session to your review queue with reason
+                ``data_mismatch``. Only meaningful with ``expected``.
 
         Returns:
             InitResult with token and verify_url.
@@ -190,6 +221,8 @@ class AsyncVerification:
             purpose=purpose,
             verification_mode=verification_mode,
             liveness_difficulty=liveness_difficulty,
+            expected=dict(expected) if expected else None,
+            mismatch_policy=mismatch_policy,
         )
         data = await self._http.post("/init", body=body)
         return InitResult.from_dict(data)
