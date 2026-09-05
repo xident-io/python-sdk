@@ -165,6 +165,72 @@ class AMLCheck:
 
 
 @dataclass(frozen=True)
+class DataMatchFields:
+    """One outcome per field you asked about; fields you did not supply are None.
+
+    Each value is ``"match"``, ``"mismatch"`` or ``"not_on_document"`` (the
+    document does not carry the field, so it could neither confirm nor
+    contradict it; blocks ``passed``).
+    """
+
+    first_name: str | None = None
+    last_name: str | None = None
+    date_of_birth: str | None = None
+    document_number: str | None = None
+    nationality: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> DataMatchFields:
+        data = data or {}
+        allowed = {"match", "mismatch", "not_on_document"}
+
+        def outcome(key: str) -> str | None:
+            v = data.get(key)
+            return v if isinstance(v, str) and v in allowed else None
+
+        return cls(
+            first_name=outcome("first_name"),
+            last_name=outcome("last_name"),
+            date_of_birth=outcome("date_of_birth"),
+            document_number=outcome("document_number"),
+            nationality=outcome("nationality"),
+        )
+
+
+@dataclass(frozen=True)
+class DataMatchCheck:
+    """Whether the identity data you supplied at init (``expected``) agrees
+    with the presented document, field by field.
+
+    Sent since 2026-09-05 and OPTIONAL on the wire: :attr:`Checks.data_match`
+    is None when the check was not performed (no ``expected`` supplied, no
+    document read, or the reference never reached the session). Gate on
+    ``checks.data_match is not None and checks.data_match.passed``, which
+    fails closed. The values themselves are never returned.
+
+    Attributes:
+        performed: Whether the comparison ran.
+        passed: True only when every requested field matched.
+        fields: Per-field outcomes -- see :class:`DataMatchFields`.
+    """
+
+    performed: bool = False
+    passed: bool = False
+    fields: DataMatchFields = field(default_factory=DataMatchFields)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> DataMatchCheck | None:
+        """Return None for an absent (or non-object) ``data_match``."""
+        if not isinstance(data, dict):
+            return None
+        return cls(
+            performed=bool(data.get("performed", False)),
+            passed=bool(data.get("passed", False)),
+            fields=DataMatchFields.from_dict(data.get("fields")),
+        )
+
+
+@dataclass(frozen=True)
 class Risk:
     """The session's risk assessment.
 
@@ -206,6 +272,7 @@ class Checks:
     face_match: FaceMatchCheck = field(default_factory=FaceMatchCheck)
     eu_wallet: EUWalletCheck = field(default_factory=EUWalletCheck)
     aml: AMLCheck = field(default_factory=AMLCheck)
+    data_match: DataMatchCheck | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> Checks:
@@ -217,6 +284,7 @@ class Checks:
             face_match=FaceMatchCheck.from_dict(data.get("face_match")),
             eu_wallet=EUWalletCheck.from_dict(data.get("eu_wallet")),
             aml=AMLCheck.from_dict(data.get("aml")),
+            data_match=DataMatchCheck.from_dict(data.get("data_match")),
         )
 
 
