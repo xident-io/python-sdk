@@ -244,7 +244,7 @@ class TestVerificationDataMatch:
         client.verification.init(
             callback_url="https://example.com/cb",
             purpose="id_verification",
-            expected={"first_name": "Ramin", "date_of_birth": "1985-01-01", "nationality": "IR"},
+            expected={"first_name": "Jane", "date_of_birth": "1990-05-14", "nationality": "GB"},
             mismatch_policy="review",
         )
 
@@ -252,9 +252,9 @@ class TestVerificationDataMatch:
         assert req is not None
         body = json.loads(req.content)
         assert body["expected"] == {
-            "first_name": "Ramin",
-            "date_of_birth": "1985-01-01",
-            "nationality": "IR",
+            "first_name": "Jane",
+            "date_of_birth": "1990-05-14",
+            "nationality": "GB",
         }
         assert body["mismatch_policy"] == "review"
 
@@ -278,12 +278,12 @@ class TestVerificationDataMatch:
         await client.verification.init(
             callback_url="https://example.com/cb",
             verification_mode="document",
-            expected={"last_name": "Farmani"},
+            expected={"last_name": "Smith"},
         )
 
         req = async_mock_transport.last_request
         assert req is not None
         body = json.loads(req.content)
-        assert body["expected"] == {"last_name": "Farmani"}
+        assert body["expected"] == {"last_name": "Smith"}
         assert "mismatch_policy" not in body
 

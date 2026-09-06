@@ -79,6 +79,8 @@ result = client.verification.init(
     purpose="age_verification",  # "age_verification" (default) or "id_verification"
     verification_mode="document",  # Force document + face match, skip on-device age estimation
     liveness_difficulty="hard",    # "easy", "medium", or "hard" -- more liveness actions
+    expected={"first_name": "Jane", "date_of_birth": "1990-05-14"},  # data match, see below
+    mismatch_policy="report",      # or "review"
 )
 
 print(result.token)       # "xit_abc123" (init token, 10-minute TTL)
@@ -125,7 +127,39 @@ session.checks.document.document_type  # "passport", "drivers_license", or None
 session.checks.document.country     # ISO 3166-1 alpha-2, or None
 session.checks.face_match.performed  # bool
 session.checks.face_match.passed     # bool
+session.checks.data_match            # DataMatchCheck or None unless you sent expected=
 ```
+
+### Data Match
+
+Send what you already know about the user and let the document confirm it.
+The values travel server to server and never reach the browser; the result
+carries only verdicts, one per field you asked about.
+
+```python
+result = client.verification.init(
+    callback_url="https://example.com/callback",
+    purpose="id_verification",  # a data match needs a document
+    expected={
+        "first_name": "Jane",
+        "last_name": "Smith",
+        "date_of_birth": "1990-05-14",  # YYYY-MM-DD
+        "nationality": "GB",            # ISO 3166-1 alpha-2
+    },
+    mismatch_policy="review",  # "report" (default): reported, outcome unchanged
+                               # "review": any mismatch goes to your review queue (reason data_mismatch)
+)
+
+# Later, on the result:
+dm = session.checks.data_match
+if dm is not None and dm.passed:
+    ...  # every field you sent matched the document
+# dm.fields.date_of_birth is "match", "mismatch", "not_on_document" or None
+```
+
+`checks.data_match` is `None` when the check was not performed (no
+`expected`, no document read). Gate on `dm is not None and dm.passed`; that
+fails closed.
 
 ## Webhooks
 
