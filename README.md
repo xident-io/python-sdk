@@ -12,7 +12,7 @@ Official Python SDK for [Xident](https://xident.io) age and identity verificatio
 pip install xident
 ```
 
-Requires Python 3.9+.
+Requires Python 3.10+.
 
 ## Quick Start
 
@@ -21,19 +21,28 @@ from xident import Xident
 
 client = Xident(api_key="sk_live_...")
 
+REQUIRED_MIN_AGE = 18  # the age YOUR site requires, decided on the server
+
 # Create an init token (server side only, with your secret key)
 result = client.verification.init(
     callback_url="https://example.com/callback",
-    user_id="user_42",  # required: your own identifier for the person
-    min_age=18,         # 12 to 25, rounded up to the next band
+    user_id=current_user.id,    # required: your own id for the signed-in person
+    min_age=REQUIRED_MIN_AGE,   # 12 to 25, rounded up to the next band
 )
 print(result.verify_url)  # Redirect user here
 
-# After callback, verify result server-side
-session = client.verification.get_result("xtk_abc123")
-if session.is_verified():
+# On your callback: read the xtk_ token from the URL, then decide server-side
+session = client.verification.get_result(token_from_callback)
+if (
+    session.external_user_id == current_user.id   # the result is this user's
+    and session.proves_age(REQUIRED_MIN_AGE)      # and proves the age you need
+):
     print(f"Verified! Age: {session.age_bracket()}+")
 ```
+
+Check both: a success can belong to somebody else (a token copied from
+another person's callback), and a success can prove a lower age (an 18+
+result at a 21+ site) or no age at all (an ID verification).
 
 > **v2.0.0 changed the shape of the verification result.** See
 > [v2 breaking changes](#v2-breaking-changes) below before upgrading.
@@ -58,7 +67,7 @@ session = await client.verification.get_result("xtk_abc123")
 
 ```python
 client = Xident(
-    api_key="sk_live_...",       # Required: secret API key (sk_live_ or sk_test_)
+    api_key="sk_live_...",       # Required: sk_live_, sk_test_, ak_live_ or ak_test_
     base_url="https://...",      # Override API URL
     timeout=30,                  # Request timeout (seconds)
     max_retries=3,               # Retry on 5xx errors
@@ -97,10 +106,10 @@ on-device age estimation.
 **Rules for `init()`.** Every setting of the session comes from this call,
 which only your backend can make:
 
-- **Server key only.** `init` needs a server key (`sk_live_`, `sk_test_`,
-  `ak_live_` or `ak_test_`; this SDK takes `sk_live_` and `sk_test_`). A public
-  key (`pk_`) gets 403 `SECRET_KEY_REQUIRED`, and this client refuses one when
-  it is built. Never put a server key in a browser or a mobile app.
+- **Server key only.** `init` needs a server key: a secret key (`sk_live_`,
+  `sk_test_`) or an agent key (`ak_live_`, `ak_test_`). A public key (`pk_`)
+  gets 403 `SECRET_KEY_REQUIRED`, and this client refuses one when it is built.
+  Never put a server key in a browser or a mobile app.
 - **`user_id`** is required. Your own identifier for the person being
   verified. It comes back on the callback and in the result.
 - **`min_age`** is required for `age_verification`: a whole number from 12 to
@@ -134,7 +143,14 @@ query parameters: `status` (`success` | `failed` | `canceled`, the same three
 words the result endpoint uses), `token` (the **result** token `xtk_...`, which
 is different from the init token `xit_...`), and `user_id`.
 Always re-verify the result server-side with `get_result()` — never trust the
-callback query parameters alone.
+callback query parameters, and never take the user from the `user_id` in the
+URL: anyone can edit a URL. Grant access only when both hold:
+
+- `session.external_user_id` is the user your backend started the
+  verification for (from your own session or login);
+- `session.proves_age(REQUIRED_MIN_AGE)`: the session passed, the age check
+  passed, and its band (`checks.age.gate`) is at least the age your backend
+  requires. An ID verification result has no band and proves no age.
 
 ### Get Verification Result
 
@@ -146,6 +162,8 @@ session.is_failed()      # True if verification failed
 session.is_pending()     # True if still in progress
 session.is_terminal()    # True if no more changes possible
 
+session.proves_age(21)   # True only if it passed AND checks.age.gate >= 21; False for id_verification
+session.external_user_id # the user_id your backend sent to init: compare it with your user
 session.age_bracket()    # 18 (verified age threshold) or None; always None for id_verification
 session.method()         # "full" | "age_check" | "xident_id" | "eu_wallet"
 session.status           # SessionStatus.SUCCESS
@@ -211,7 +229,13 @@ event = client.webhooks.construct_event(
 )
 
 print(event["type"])  # "session.success"
-print(event["data"])  # Event payload dict
+print(event["data"])  # the same result get_result() returns, as a dict
+
+# Apply the callback's rules to it before you grant anything:
+from xident import SessionResult
+result = SessionResult.from_dict(event["data"])
+if result.external_user_id == your_user_id and result.proves_age(REQUIRED_MIN_AGE):
+    ...
 
 # Or verify signature only
 client.webhooks.verify_signature(payload, signature, secret)

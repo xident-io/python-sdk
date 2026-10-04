@@ -393,6 +393,36 @@ class SessionResult:
             return self.checks.age.gate
         return None
 
+    def proves_age(self, min_age: int) -> bool:
+        """Whether this result proves the person is at least ``min_age``.
+
+        Pass the minimum age YOUR backend requires (the value it sent to
+        ``init``, 12 to 25). True only when the session passed, the age check
+        passed, and the age band it was checked against (``checks.age.gate``)
+        is at least ``min_age``. The API enforces a band (19 is enforced as
+        21), so a result for ``min_age=19`` carries gate 21 and proves 19.
+
+        False for an ID verification result: it has no age gate, so it proves
+        an identity, not an age threshold. False for a successful result made
+        for a LOWER age, such as an 18+ result shown at a 21+ checkout.
+
+        This does not check who the result belongs to. Compare
+        ``external_user_id`` with the user your backend started the
+        verification for, too.
+
+        Raises:
+            ValueError: ``min_age`` is not a whole number from 12 to 25.
+        """
+        if isinstance(min_age, bool) or not isinstance(min_age, int) or not 12 <= min_age <= 25:
+            raise ValueError("min_age must be a whole number from 12 to 25")
+        gate = self.checks.age.gate
+        return (
+            self.is_verified()
+            and self.checks.age.passed
+            and gate is not None
+            and gate >= min_age
+        )
+
     def method(self) -> str | None:
         """How the session was verified (e.g. "full", "document", "facial")."""
         return self.verification_type

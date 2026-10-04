@@ -30,12 +30,21 @@ if not secret_key:
 # Initialize the client
 client = Xident(api_key=secret_key)
 
+# The age YOUR site requires, decided here on the server and never taken from
+# the browser. 12 to 25; Xident rounds it up to the next of 12, 15, 18, 21 or
+# 25 (19 is enforced as 21).
+REQUIRED_MIN_AGE = 18
+
+# Your own identifier for the person, from your session or login. It must be
+# the same value when the person comes back to the callback.
+USER_ID = "demo_user_1"
+
 # ---- Step 1: Create Init Token ----
 try:
     result = client.verification.init(
         callback_url="https://example.com/callback",
-        user_id="demo_user_1",  # required: your own identifier for the person
-        min_age=18,  # 12 to 25, rounded up to the next band (19 is enforced as 21)
+        user_id=USER_ID,  # required
+        min_age=REQUIRED_MIN_AGE,
     )
     print(f"Init token: {result.token}")
     print(f"Verify URL: {result.verify_url}")
@@ -46,20 +55,27 @@ except XidentError as e:
 
 # ---- Step 2: After user returns, verify result ----
 # The user will be redirected back to your callback_url with ?token=xtk_xxx
-# ALWAYS verify server-side -- never trust URL params alone.
+# ALWAYS verify server-side -- never trust URL params alone, and never take the
+# user id from the callback URL: anyone can edit it.
 
 demo_token = "xtk_demo_token"  # Replace with actual token from callback
 try:
     session = client.verification.get_result(demo_token)
 
-    if session.is_verified():
+    if session.is_pending():
+        print("Verification still in progress...")
+    elif session.external_user_id != USER_ID:
+        # A real success for somebody else: a token copied from another
+        # person's callback. Never grant anything on it.
+        print("This result belongs to another user")
+    elif session.proves_age(REQUIRED_MIN_AGE):
+        # Success, the age check passed, and its band covers your age. An ID
+        # verification (no age band) or an 18+ result at a 21+ site is False.
         print(f"Verified! Age bracket: {session.age_bracket()}+")
-        print(f"Method: {session.method()}")  # "full", "document", "facial", ...
+        print(f"Method: {session.method()}")  # "full", "age_check", "xident_id", ...
         if session.checks.document.performed:
             print(f"Document country: {session.checks.document.country}")
-    elif session.is_failed():
-        print("Verification failed")
-    elif session.is_pending():
-        print("Verification still in progress...")
+    else:
+        print(f"Not verified for {REQUIRED_MIN_AGE}+ (status {session.status.value})")
 except XidentError as e:
     print(f"Error checking result: {e}")

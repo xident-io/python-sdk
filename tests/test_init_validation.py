@@ -39,6 +39,7 @@ API_ID_FACIAL_MESSAGE = (
 )
 
 MODES = ["sync", "async"]
+INIT_PATH = "/verify/v1/init"
 
 
 def _init(mode: str, **kwargs: Any) -> tuple[int, dict[str, Any] | None]:
@@ -65,6 +66,11 @@ def _init(mode: str, **kwargs: Any) -> tuple[int, dict[str, Any] | None]:
         finally:
             sent = async_transport.request_count
             last = async_transport.last_request
+    if last is not None:
+        # Every request init sends goes to POST /verify/v1/init. Checked here so
+        # that every passing case also fails if the path or method changes.
+        assert last.method == "POST"
+        assert last.url.path == INIT_PATH
     body = json.loads(last.content) if last is not None else None
     return sent, body
 
@@ -160,8 +166,12 @@ class TestAgeVerificationMinAge:
             mode, callback_url=CB, user_id="user_42", min_age=18, verification_mode="facial"
         )
         assert sent == 1
-        assert body is not None
-        assert body["verification_mode"] == "facial"
+        assert body == {
+            "callback_url": CB,
+            "user_id": "user_42",
+            "min_age": 18,
+            "verification_mode": "facial",
+        }
 
 
 @pytest.mark.parametrize("mode", MODES)
@@ -192,17 +202,19 @@ class TestIdVerification:
     def test_without_min_age_is_sent_without_it(self, mode: str) -> None:
         sent, body = _init(mode, callback_url=CB, user_id="user_42", purpose="id_verification")
         assert sent == 1
-        assert body is not None
-        assert "min_age" not in body
-        assert body["purpose"] == "id_verification"
+        assert body == {"callback_url": CB, "user_id": "user_42", "purpose": "id_verification"}
 
     def test_min_age_zero_is_accepted(self, mode: str) -> None:
         sent, body = _init(
             mode, callback_url=CB, user_id="user_42", purpose="id_verification", min_age=0
         )
         assert sent == 1
-        assert body is not None
-        assert body["min_age"] == 0
+        assert body == {
+            "callback_url": CB,
+            "user_id": "user_42",
+            "purpose": "id_verification",
+            "min_age": 0,
+        }
 
     @pytest.mark.parametrize("verification_mode", ["document", "auto"])
     def test_document_and_auto_are_accepted(self, mode: str, verification_mode: str) -> None:
@@ -214,8 +226,14 @@ class TestIdVerification:
             verification_mode=verification_mode,
         )
         assert sent == 1
-        assert body is not None
-        assert body["verification_mode"] == verification_mode
+        # The whole body: purpose and mode must both survive, and no age may
+        # be added after validation (the API would refuse an ID session with one).
+        assert body == {
+            "callback_url": CB,
+            "user_id": "user_42",
+            "purpose": "id_verification",
+            "verification_mode": verification_mode,
+        }
 
 
 def test_api_refusal_still_surfaces_as_validation_error() -> None:

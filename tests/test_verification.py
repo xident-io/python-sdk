@@ -37,6 +37,8 @@ class TestVerification:
         req = mock_transport.last_request
         assert req is not None
         assert req.method == "POST"
+        assert req.url.path == "/verify/v1/init"
+        assert str(req.url) == "https://api.xident.io/verify/v1/init"
         body = json.loads(req.content)
         assert body["callback_url"] == "https://example.com/cb"
         assert body["min_age"] == 18
@@ -167,6 +169,10 @@ class TestVerification:
 
         result = client.verification.get_result("xtk_abc123")
 
+        req = mock_transport.last_request
+        assert req is not None
+        assert req.method == "GET"
+        assert req.url.path == "/verify/v1/result/xtk_abc123"
         assert result.token == "xtk_abc123"
         assert result.status == xident.SessionStatus.COMPLETED
         assert result.is_verified()
@@ -189,6 +195,52 @@ class TestVerification:
         assert req is not None
         # Slashes should be encoded in the URL path
         assert "token%2Fwith%2Fslashes" in str(req.url)
+
+
+class TestAgentKeys:
+    """The API accepts agent keys (ak_live_, ak_test_) on /init (api#44)."""
+
+    @pytest.mark.parametrize("key", ["ak_live_agent1", "ak_test_agent1"])
+    def test_sync_client_sends_init_with_an_agent_key(self, key: str) -> None:
+        transport = MockTransport()
+        transport.queue_success({"token": "xit_ak", "verify_url": "https://v.io?t=xit_ak"})
+        client = xident.Xident(api_key=key, transport=transport)
+
+        client.verification.init(callback_url="https://example.com/cb", user_id="u-1", min_age=21)
+
+        req = transport.last_request
+        assert req is not None
+        assert req.method == "POST"
+        assert req.url.path == "/verify/v1/init"
+        assert req.headers["X-API-Key"] == key
+        assert json.loads(req.content) == {
+            "callback_url": "https://example.com/cb",
+            "user_id": "u-1",
+            "min_age": 21,
+        }
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("key", ["ak_live_agent1", "ak_test_agent1"])
+    async def test_async_client_sends_init_with_an_agent_key(self, key: str) -> None:
+        transport = AsyncMockTransport()
+        transport.queue_success({"token": "xit_ak", "verify_url": "https://v.io?t=xit_ak"})
+        client = xident.AsyncXident(api_key=key, transport=transport)
+
+        await client.verification.init(
+            callback_url="https://example.com/cb", user_id="u-1", min_age=21
+        )
+
+        req = transport.last_request
+        assert req is not None
+        assert req.url.path == "/verify/v1/init"
+        assert req.headers["X-API-Key"] == key
+
+    @pytest.mark.parametrize("key", ["pk_live_x", "pk_test_x"])
+    def test_public_keys_are_still_refused(self, key: str) -> None:
+        with pytest.raises(ValueError, match="Public keys"):
+            xident.Xident(api_key=key)
+        with pytest.raises(ValueError, match="Public keys"):
+            xident.AsyncXident(api_key=key)
 
 
 class TestAsyncVerification:
@@ -223,9 +275,13 @@ class TestAsyncVerification:
 
         req = transport.last_request
         assert req is not None
+        assert req.method == "POST"
+        assert req.url.path == "/verify/v1/init"
         body = json.loads(req.content)
         assert body["verification_mode"] == "document"
         assert body["liveness_difficulty"] == "hard"
+        assert body["user_id"] == "user_42"
+        assert body["min_age"] == 18
 
     @pytest.mark.asyncio
     async def test_get_result_returns_session(self) -> None:

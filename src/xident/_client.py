@@ -41,7 +41,8 @@ class Xident:
     """Synchronous Xident SDK client.
 
     Args:
-        api_key: Your Xident secret API key (sk_live_xxx or sk_test_xxx).
+        api_key: Your Xident server key: a secret key (sk_live_xxx or sk_test_xxx)
+            or an agent key (ak_live_xxx or ak_test_xxx).
         base_url: API base URL override.
         timeout: Request timeout in seconds (default: 30).
         max_retries: Max retries on 5xx errors (default: 3).
@@ -126,7 +127,8 @@ class AsyncXident:
     """Asynchronous Xident SDK client.
 
     Args:
-        api_key: Your Xident secret API key (sk_live_xxx or sk_test_xxx).
+        api_key: Your Xident server key: a secret key (sk_live_xxx or sk_test_xxx)
+            or an agent key (ak_live_xxx or ak_test_xxx).
         base_url: API base URL override.
         timeout: Request timeout in seconds (default: 30).
         max_retries: Max retries on 5xx errors (default: 3).

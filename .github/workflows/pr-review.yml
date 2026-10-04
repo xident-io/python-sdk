@@ -32,14 +32,26 @@ jobs:
         with:
           python-version: "3.12"
 
+      # The package and its test tools must be installed, or pytest is not
+      # even found. This job used to skip the install and append
+      # `|| echo "No tests yet"`, so a missing pytest or a failing test both
+      # reported success in the PR summary.
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      # Keep the last 50 lines for the PR summary, then exit with pytest's own
+      # status, so a failing test fails this job and the summary says failure.
       - name: Run tests
         id: test
-        continue-on-error: true
         run: |
-          OUTPUT=$(python -m pytest tests/ 2>&1 || echo "No tests yet")
-          echo "output<<EOF" >> $GITHUB_OUTPUT
-          echo "$OUTPUT" | tail -50 >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          set +e
+          OUTPUT=$(python -m pytest tests/ 2>&1)
+          STATUS=$?
+          set -e
+          echo "output<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$OUTPUT" | tail -50 >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          exit $STATUS
 
   code-review:
     name: Claude Code Review
@@ -94,13 +106,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The test output and results reach the script through the environment,
+      # not pasted into its source: test output is text from the PR's own
+      # code, and pasted into a JavaScript template literal a backtick or
+      # `${...}` in it would run as script.
       - name: Generate PR Summary
         uses: actions/github-script@v7
+        env:
+          TEST_RESULT: ${{ needs.test.outputs.test-result }}
+          TEST_OUTPUT: ${{ needs.test.outputs.test-output }}
+          SECURITY_FINDINGS: ${{ needs.security-review.outputs.findings-count }}
         with:
           script: |
-            const testResult = '${{ needs.test.outputs.test-result }}';
-            const testOutput = `${{ needs.test.outputs.test-output }}`;
-            const securityFindings = '${{ needs.security-review.outputs.findings-count }}' || '0';
+            const testResult = process.env.TEST_RESULT || '';
+            const testOutput = process.env.TEST_OUTPUT || '';
+            const securityFindings = process.env.SECURITY_FINDINGS || '0';
             
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
