@@ -179,8 +179,8 @@ session.is_terminal()    # True if no more changes possible
 session.proves_age(21)   # True only if verified, not a test-key result, AND checks.age.gate >= 21
 session.test             # True for a test-key result: it grants nothing
 session.external_user_id # the user_id your backend sent to init: compare it with your user
-session.age_bracket()    # 18 when checks.age.passed, else None; None for id_verification and for an
-                         # Xident ID reuse (no new age check ran): decide with proves_age()
+session.age_bracket()    # the band proved (e.g. 21), by the same rule as proves_age(): verified, not a
+                         # test-key result, checks.age.gate present; None for id_verification
 session.method()         # "full" | "age_check" | "xident_id" | "eu_wallet"
 session.status           # SessionStatus.SUCCESS
 session.reason           # "" on success; e.g. "age_below_threshold" on failure

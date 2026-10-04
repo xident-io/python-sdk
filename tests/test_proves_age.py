@@ -250,3 +250,46 @@ class TestFiveShapes:
         event = Webhooks().construct_event(payload, f"t={ts},v1={sig}", "whsec_test")
 
         assert SessionResult.from_dict(event["data"]).proves_age(21) is expected
+
+
+class TestAgeBracketFollowsProvesAge:
+    """age_bracket() uses the proves_age rule, so the two never disagree.
+
+    Mutations caught: requiring checks.age.passed (the reuse and wallet rows
+    fail); dropping the verified check; dropping the test-key check; letting
+    a gate of 0 through.
+    """
+
+    @pytest.mark.parametrize(
+        ("name", "want", "want_allow_test"),
+        [
+            (AGE_21, 21, 21),
+            (REUSE_21, 21, 21),
+            (WALLET_21, 21, 21),
+            (ID_ONLY, None, None),
+            (TEST_MODE_21, None, 21),
+        ],
+    )
+    def test_the_five_shapes(
+        self, name: str, want: int | None, want_allow_test: int | None
+    ) -> None:
+        result = SessionResult.from_dict(load(name))
+        assert result.age_bracket() == want
+        assert result.age_bracket(allow_test=True) == want_allow_test
+        for age in (12, 15, 18, 21, 25):
+            bracket = result.age_bracket()
+            assert result.proves_age(age) is (bracket is not None and bracket >= age)
+            bracket_t = result.age_bracket(allow_test=True)
+            proven_t = bracket_t is not None and bracket_t >= age
+            assert result.proves_age(age, allow_test=True) is proven_t
+
+    def test_a_failed_session_has_no_band(self) -> None:
+        data = load(AGE_21)
+        data["status"] = "failed"
+        data["verified"] = False
+        assert SessionResult.from_dict(data).age_bracket() is None
+
+    def test_a_zero_gate_is_no_band(self) -> None:
+        data = load(REUSE_21)
+        data["checks"]["age"]["gate"] = 0
+        assert SessionResult.from_dict(data).age_bracket() is None

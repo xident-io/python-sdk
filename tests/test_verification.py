@@ -160,6 +160,7 @@ class TestVerification:
             {
                 "token": "xtk_abc123",
                 "status": "success",
+                "verified": True,
                 "verification_type": "age_check",
                 "checks": {"age": {"performed": True, "passed": True, "gate": 18}},
                 "created_at": "2026-01-01T00:00:00Z",

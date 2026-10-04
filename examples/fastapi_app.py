@@ -95,7 +95,7 @@ async def verification_callback(request: Request, token: str):
     if result.proves_age(REQUIRED_MIN_AGE):
         return {
             "status": "verified",
-            "age_bracket": result.checks.age.gate,
+            "age_bracket": result.age_bracket(),
             "method": result.method(),  # "full", "age_check", "xident_id", ...
             "document_country": result.checks.document.country,
         }

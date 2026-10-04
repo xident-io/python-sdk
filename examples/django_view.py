@@ -87,7 +87,7 @@ def verification_callback(request: HttpRequest) -> HttpResponse:
     # not enough.
     if session.proves_age(REQUIRED_MIN_AGE):
         request.user.age_verified = True  # type: ignore[attr-defined]
-        request.user.age_bracket = session.checks.age.gate  # type: ignore[attr-defined]
+        request.user.age_bracket = session.age_bracket()  # type: ignore[attr-defined]
         request.user.save()  # type: ignore[attr-defined]
         return redirect("/verify/success/")
     return redirect("/verify/failed/")

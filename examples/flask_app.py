@@ -81,7 +81,7 @@ def verification_callback():
     # ID verification result (no age band) or an 18+ result at a 21+ site is
     # not enough.
     if result.proves_age(REQUIRED_MIN_AGE):
-        return jsonify({"status": "verified", "age_bracket": result.checks.age.gate})
+        return jsonify({"status": "verified", "age_bracket": result.age_bracket()})
     return jsonify({"status": "failed"}), 403
 
 

@@ -325,13 +325,26 @@ class TestSessionResult:
             {
                 "token": "xtk_s",
                 "status": "success",
+                "verified": True,
                 "checks": {"age": {"performed": True, "passed": True, "gate": 21}},
             }
         )
         assert result.age_bracket() == 21
 
+    def test_age_bracket_none_when_not_verified(self) -> None:
+        """The same rule as proves_age: the band comes from a verified result.
+        A payload without ``verified`` (an old deployment) proves no band."""
+        result = SessionResult.from_dict(
+            {
+                "token": "xtk_s",
+                "status": "success",
+                "checks": {"age": {"performed": True, "passed": True, "gate": 21}},
+            }
+        )
+        assert result.age_bracket() is None
+
     def test_age_bracket_none_when_not_passed(self) -> None:
-        """A gate value present but the check failed -- must not leak the gate."""
+        """A gate value present but the session failed -- must not leak the gate."""
         result = SessionResult.from_dict(
             {
                 "token": "xtk_s",

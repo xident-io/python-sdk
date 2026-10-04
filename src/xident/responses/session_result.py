@@ -387,17 +387,34 @@ class SessionResult:
         """Session has reached a terminal state (no more changes possible)."""
         return self.status.is_terminal
 
-    def age_bracket(self) -> int | None:
-        """The verified age bracket (12, 15, 18, 21, 25), or None.
+    def age_bracket(self, *, allow_test: bool = False) -> int | None:
+        """The age band this result proves (12, 15, 18, 21 or 25), or None.
 
-        None whenever the age check did not pass -- whether because it was
-        never performed, or because it ran and failed. A ``gate`` value on a
-        failed check describes what was tested against, not a verified fact,
-        so it is never surfaced here.
+        The same rule as :meth:`proves_age`, so the two never disagree:
+        ``verified`` is true, the result is not a test-mode verdict (unless
+        ``allow_test=True``), and ``checks.age.gate`` is present.
+        ``proves_age(n)`` is true exactly when ``age_bracket()`` is not None
+        and at least ``n``.
+
+        ``checks.age.passed`` is deliberately not required: a Xident ID reuse
+        (``verification_type`` ``xident_id``) and an EU wallet presentation
+        (``eu_wallet``) pass with the gate while ``performed`` and ``passed``
+        are False, because that session ran no age check of its own.
+
+        None for a failed or unfinished session, whatever its gate; None for
+        an ID verification, which has no gate; None for a test-key result
+        unless ``allow_test=True``, which only code running with a test key
+        during development may pass.
         """
-        if self.checks.age.passed:
-            return self.checks.age.gate
-        return None
+        gate = self.checks.age.gate
+        if (
+            self.verified is not True
+            or (self.test and not allow_test)
+            or gate is None
+            or gate <= 0
+        ):
+            return None
+        return gate
 
     def proves_age(self, min_age: int, *, allow_test: bool = False) -> bool:
         """Whether this result proves the person is at least ``min_age``.
