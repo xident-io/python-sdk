@@ -24,6 +24,14 @@ and records no evidence, so ``buildResultChecks`` reports every check
 ``performed: false, passed: false`` and the age gate is the session's
 ``min_age`` (21). It must prove the age: ``checks.age.passed`` is not part of
 the rule.
+
+``tenant_result_v1_eu_wallet.json`` is a passed EU Digital Identity Wallet
+presentation and ``tenant_result_v1_test_mode.json`` a test key's settle, both
+built from ``TenantResultView`` at api c2d6890: the wallet path stores only
+the wallet result (reason ``all_methods_verified``, ``checks.eu_wallet``
+passed, ``checks.age`` not performed, gate 21); the test settle
+(``settleTestSession``, reason ``test_mode``, every check not performed, gate
+21) carries ``"test": true``.
 """
 
 from __future__ import annotations
@@ -37,8 +45,11 @@ from typing import Any
 
 import pytest
 
+import xident
 from xident import SessionResult
 from xident.resources.webhooks import Webhooks
+
+from .conftest import AsyncMockTransport, MockTransport
 
 TESTDATA = Path(__file__).parent / "testdata"
 
@@ -51,6 +62,8 @@ def load(name: str) -> dict[str, Any]:
 AGE_21 = "tenant_result_v1.golden.json"
 ID_ONLY = "tenant_result_v1_id_no_gate.json"
 REUSE_21 = "tenant_result_v1_xident_id_reuse.json"
+WALLET_21 = "tenant_result_v1_eu_wallet.json"
+TEST_MODE_21 = "tenant_result_v1_test_mode.json"
 
 
 class TestProvesAge:
@@ -121,18 +134,108 @@ class TestProvesAge:
             result.proves_age(min_age)
 
 
-class TestProvesAgeFromWebhook:
-    """The same rule applied to a webhook: ``data`` is the same tenant result.
+def as_test_key(fixture: str) -> dict[str, Any]:
+    """The fixture as a test key's session returns it: ``"test": true`` added.
 
-    The envelope is the API's ``models.WebhookEventPayload`` (id, type,
-    api_version, created, data), signed the way the API signs it.
+    A test key settles the session at once with no real check (the API's
+    ``settleTestSession``), yet the result is verified and carries the gate.
     """
+    data = load(fixture)
+    data["test"] = True
+    return data
+
+
+class TestTestKeyResults:
+    """Round 2 addendum: a test-key verdict proves nothing unless opted in.
+
+    The security scan flagged that, once ``checks.age.passed`` left the rule,
+    a verified test-key result with a gate counted as proof of age.
+    """
+
+    def test_the_test_field_is_read(self) -> None:
+        assert SessionResult.from_dict(as_test_key(AGE_21)).test is True
+        assert SessionResult.from_dict(load(AGE_21)).test is False  # absent on live sessions
+        assert SessionResult.from_dict({**load(AGE_21), "test": "true"}).test is False
+
+    @pytest.mark.parametrize("min_age", [18, 21])
+    def test_a_test_mode_gate_21_result_is_refused_by_default(self, min_age: int) -> None:
+        result = SessionResult.from_dict(as_test_key(AGE_21))
+        assert result.verified is True
+        assert result.proves_age(min_age) is False
+
+    @pytest.mark.parametrize("min_age", [18, 21])
+    def test_a_test_mode_result_is_accepted_only_with_the_opt_in(self, min_age: int) -> None:
+        result = SessionResult.from_dict(as_test_key(AGE_21))
+        assert result.proves_age(min_age, allow_test=True) is True
+        assert result.proves_age(25, allow_test=True) is False  # the gate still applies
+
+    def test_a_live_reuse_result_is_accepted_without_the_opt_in(self) -> None:
+        assert SessionResult.from_dict(load(REUSE_21)).proves_age(21) is True
+
+    @pytest.mark.parametrize("data", [load(ID_ONLY), as_test_key(ID_ONLY)])
+    def test_an_id_only_result_is_refused_even_with_the_opt_in(self, data: dict[str, Any]) -> None:
+        assert SessionResult.from_dict(data).proves_age(12, allow_test=True) is False
+
+    def test_through_the_sync_client(self, mock_transport: MockTransport) -> None:
+        mock_transport.queue_success(as_test_key(AGE_21))
+        mock_transport.queue_success(load(REUSE_21))
+        client = xident.Xident(api_key="sk_test_123", transport=mock_transport)
+
+        test_result = client.verification.get_result("xtk_golden0001")
+        live_result = client.verification.get_result("xtk_golden0003")
+
+        assert test_result.proves_age(21) is False
+        assert test_result.proves_age(21, allow_test=True) is True
+        assert live_result.proves_age(21) is True
+
+    @pytest.mark.asyncio
+    async def test_through_the_async_client(self) -> None:
+        transport = AsyncMockTransport()
+        transport.queue_success(as_test_key(AGE_21))
+        transport.queue_success(load(REUSE_21))
+        client = xident.AsyncXident(api_key="sk_test_123", transport=transport)
+
+        test_result = await client.verification.get_result("xtk_golden0001")
+        live_result = await client.verification.get_result("xtk_golden0003")
+
+        assert test_result.proves_age(21) is False
+        assert test_result.proves_age(21, allow_test=True) is True
+        assert live_result.proves_age(21) is True
+
+
+class TestFiveShapes:
+    """Every result shape the API produces today, against one rule."""
+
+    @pytest.mark.parametrize(
+        ("fixture", "min_age", "expected"),
+        [
+            (AGE_21, 18, True), (AGE_21, 21, True), (AGE_21, 25, False),
+            (ID_ONLY, 12, False), (ID_ONLY, 18, False), (ID_ONLY, 25, False),
+            (REUSE_21, 18, True), (REUSE_21, 21, True), (REUSE_21, 25, False),
+            (WALLET_21, 18, True), (WALLET_21, 21, True), (WALLET_21, 25, False),
+            (TEST_MODE_21, 18, False), (TEST_MODE_21, 21, False), (TEST_MODE_21, 25, False),
+        ],
+    )
+    def test_the_rule(self, fixture: str, min_age: int, expected: bool) -> None:
+        assert SessionResult.from_dict(load(fixture)).proves_age(min_age) is expected
+
+    @pytest.mark.parametrize(("min_age", "expected"), [(18, True), (21, True), (25, False)])
+    def test_the_test_settle_with_the_opt_in(self, min_age: int, expected: bool) -> None:
+        result = SessionResult.from_dict(load(TEST_MODE_21))
+        assert result.test is True
+        assert result.proves_age(min_age, allow_test=True) is expected
 
     @pytest.mark.parametrize(
         ("fixture", "expected"),
-        [(AGE_21, True), (REUSE_21, True), (ID_ONLY, False)],
+        [
+            (AGE_21, True),
+            (ID_ONLY, False),
+            (REUSE_21, True),
+            (WALLET_21, True),
+            (TEST_MODE_21, False),
+        ],
     )
-    def test_a_signed_session_success_webhook(self, fixture: str, expected: bool) -> None:
+    def test_through_a_signed_webhook(self, fixture: str, expected: bool) -> None:
         envelope = {
             "id": "evt_0001",
             "type": "session.success",
@@ -145,7 +248,5 @@ class TestProvesAgeFromWebhook:
         sig = hmac.new(b"whsec_test", f"{ts}.{payload}".encode(), hashlib.sha256).hexdigest()
 
         event = Webhooks().construct_event(payload, f"t={ts},v1={sig}", "whsec_test")
-        result = SessionResult.from_dict(event["data"])
 
-        assert result.external_user_id == "cust-4711"
-        assert result.proves_age(21) is expected
+        assert SessionResult.from_dict(event["data"]).proves_age(21) is expected

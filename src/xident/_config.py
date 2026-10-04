@@ -14,14 +14,14 @@ DEFAULT_BASE_URL = "https://api.xident.io"
 DEFAULT_TIMEOUT = 30
 DEFAULT_MAX_RETRIES = 3
 API_VERSION = "verify/v1"
+"""The API version path PREFIX. Not the dated response contract -- see
+PINNED_API_VERSION. Naming these alike is how the verification_mode /
+verification_type confusion started."""
 
 # Every key the API accepts on the server routes (POST /verify/v1/init and the
 # rest): a secret key (sk_) or an agent key (ak_), live or test. A public key
 # (pk_) belongs in a browser and gets 403 SECRET_KEY_REQUIRED on /init.
 SERVER_KEY_PREFIXES = ("sk_live_", "sk_test_", "ak_live_", "ak_test_")
-"""The API version path PREFIX. Not the dated response contract -- see
-PINNED_API_VERSION. Naming these alike is how the verification_mode /
-verification_type confusion started."""
 
 PINNED_API_VERSION = "2026-08-13"
 """The dated API version this SDK release was built against, sent as

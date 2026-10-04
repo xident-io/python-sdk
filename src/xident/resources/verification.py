@@ -32,6 +32,7 @@ _INVALID_MIN_AGE_MESSAGE = (
     "min_age must be between 12 and 25; it is rounded up to the next of 12, 15, 18, "
     "21 or 25 (19 is enforced as 21). An id_verification takes no min_age."
 )
+_INVALID_PURPOSE_MESSAGE = "purpose must be 'age_verification' or 'id_verification'"
 _ID_FACIAL_MESSAGE = (
     "verification_mode facial cannot be combined with purpose id_verification, "
     "which always requires a document"
@@ -67,11 +68,16 @@ def _validate_init(
     and keeps a request that can only fail from leaving the process.
 
     Raises:
-        ValidationError: ``MISSING_USER_ID``, ``INVALID_MIN_AGE`` or
-            ``INVALID_VERIFICATION_MODE``.
+        ValidationError: ``MISSING_USER_ID``, ``INVALID_PURPOSE``,
+            ``INVALID_MIN_AGE`` or ``INVALID_VERIFICATION_MODE``, checked in
+            the API's order.
     """
     if user_id is None or (isinstance(user_id, str) and not user_id.strip()):
         raise _local_validation_error(_MISSING_USER_ID_MESSAGE, "MISSING_USER_ID")
+
+    # Absent or empty means the default, age_verification, as on the API.
+    if purpose not in (None, "", "age_verification", "id_verification"):
+        raise _local_validation_error(_INVALID_PURPOSE_MESSAGE, "INVALID_PURPOSE")
 
     if purpose == "id_verification":
         # An ID verification has no age threshold: min_age absent or 0.
@@ -81,9 +87,8 @@ def _validate_init(
             raise _local_validation_error(_ID_FACIAL_MESSAGE, "INVALID_VERIFICATION_MODE")
         return
 
-    # Any other purpose (age_verification, the default) needs an age the
-    # browser models can decide. An unknown purpose is checked the strict way
-    # too; the API then answers INVALID_PURPOSE for it.
+    # An age verification (the default) needs an age the browser models can
+    # decide.
     if (
         min_age is None
         or not _is_whole_number(min_age)
@@ -172,7 +177,8 @@ class Verification:
 
         Raises:
             ValidationError: Before any request, when ``user_id`` is empty
-                (``MISSING_USER_ID``), ``min_age`` is outside the rules above
+                (``MISSING_USER_ID``), ``purpose`` is not one of the two values
+                (``INVALID_PURPOSE``), ``min_age`` is outside the rules above
                 (``INVALID_MIN_AGE``), or "id_verification" is combined with
                 "facial" (``INVALID_VERIFICATION_MODE``). Also when the API
                 refuses a parameter (HTTP 400).
@@ -312,7 +318,8 @@ class AsyncVerification:
 
         Raises:
             ValidationError: Before any request, when ``user_id`` is empty
-                (``MISSING_USER_ID``), ``min_age`` is outside the rules above
+                (``MISSING_USER_ID``), ``purpose`` is not one of the two values
+                (``INVALID_PURPOSE``), ``min_age`` is outside the rules above
                 (``INVALID_MIN_AGE``), or "id_verification" is combined with
                 "facial" (``INVALID_VERIFICATION_MODE``). Also when the API
                 refuses a parameter (HTTP 400).

@@ -325,6 +325,11 @@ class SessionResult:
         created_at: ISO 8601 timestamp of session creation.
         completed_at: ISO 8601 timestamp of session completion, or None.
         expires_at: ISO 8601 timestamp of session expiry, or None.
+        test: True when the verdict came from a test-mode session (a test
+            key settles it at once, with no real check). It grants nothing:
+            :meth:`proves_age` refuses it unless you opt in with
+            ``allow_test=True``. False on every live session (the API omits
+            the field there).
     """
 
     token: str
@@ -339,6 +344,7 @@ class SessionResult:
     created_at: str = ""
     completed_at: str | None = None
     expires_at: str | None = None
+    test: bool = False
 
     @property
     def id(self) -> str:
@@ -393,14 +399,15 @@ class SessionResult:
             return self.checks.age.gate
         return None
 
-    def proves_age(self, min_age: int) -> bool:
+    def proves_age(self, min_age: int, *, allow_test: bool = False) -> bool:
         """Whether this result proves the person is at least ``min_age``.
 
         Pass the minimum age YOUR backend requires (the value it sent to
-        ``init``, 12 to 25). True only when ``verified`` is true and the age
-        band the session was checked against (``checks.age.gate``) is present
-        and at least ``min_age``. The API enforces a band (19 is enforced as
-        21), so a result for ``min_age=19`` carries gate 21 and proves 19.
+        ``init``, 12 to 25). True only when ``verified`` is true, the result
+        is not a test-mode verdict, and the age band the session was checked
+        against (``checks.age.gate``) is present and at least ``min_age``.
+        The API enforces a band (19 is enforced as 21), so a result for
+        ``min_age=19`` carries gate 21 and proves 19.
 
         ``checks.age.passed`` is deliberately not required: a returning user
         who reuses an age already proven on their Xident ID
@@ -408,14 +415,20 @@ class SessionResult:
         gate, but ``checks.age.performed`` and ``passed`` are False, because
         that session captured no new evidence.
 
+        A result with ``test`` true came from a test key: the session settled
+        at once with no real check, yet it is verified and carries the gate.
+        It is refused unless you pass ``allow_test=True``. Use that only in
+        code that runs with a test key during development, never in
+        production.
+
         False for an ID verification result: it has no age gate, so it proves
-        an identity, not an age threshold. False for a successful result made
-        for a LOWER age, such as an 18+ result shown at a 21+ checkout.
+        an identity, not an age threshold, even with ``allow_test``. False for
+        a successful result made for a LOWER age, such as an 18+ result shown
+        at a 21+ checkout.
 
         This does not check who the result belongs to. Compare
         ``external_user_id`` with the user your backend started the
-        verification for, too. A result from a test key (``test: true`` on the
-        wire) is never a real verification: production code must refuse it.
+        verification for, too.
 
         Raises:
             ValueError: ``min_age`` is not a whole number from 12 to 25.
@@ -423,7 +436,12 @@ class SessionResult:
         if isinstance(min_age, bool) or not isinstance(min_age, int) or not 12 <= min_age <= 25:
             raise ValueError("min_age must be a whole number from 12 to 25")
         gate = self.checks.age.gate
-        return self.verified is True and gate is not None and gate >= min_age
+        return (
+            self.verified is True
+            and (not self.test or allow_test)
+            and gate is not None
+            and gate >= min_age
+        )
 
     def method(self) -> str | None:
         """How the session was verified (e.g. "full", "document", "facial")."""
@@ -466,4 +484,5 @@ class SessionResult:
             created_at=str(data.get("created_at", "")),
             completed_at=data.get("completed_at"),
             expires_at=data.get("expires_at"),
+            test=data.get("test") is True,
         )

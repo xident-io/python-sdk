@@ -30,6 +30,14 @@ if not secret_key:
 # Initialize the client
 client = Xident(api_key=secret_key)
 
+# A test key's result carries test: true and proves nothing, so proves_age()
+# refuses it. This local script may accept it when you ask for that
+# explicitly, and never with a live key.
+ALLOW_TEST_RESULTS = os.environ.get("XIDENT_ALLOW_TEST_RESULTS") == "1"
+if ALLOW_TEST_RESULTS and secret_key.startswith(("sk_live_", "ak_live_")):
+    print("ERROR: XIDENT_ALLOW_TEST_RESULTS=1 is for test keys only")
+    sys.exit(1)
+
 # The age YOUR site requires, decided here on the server and never taken from
 # the browser. 12 to 25; Xident rounds it up to the next of 12, 15, 18, 21 or
 # 25 (19 is enforced as 21).
@@ -68,7 +76,7 @@ try:
         # A real success for somebody else: a token copied from another
         # person's callback. Never grant anything on it.
         print("This result belongs to another user")
-    elif session.proves_age(REQUIRED_MIN_AGE):
+    elif session.proves_age(REQUIRED_MIN_AGE, allow_test=ALLOW_TEST_RESULTS):
         # Verified, and its age band covers your age. An ID
         # verification (no age band) or an 18+ result at a 21+ site is False.
         print(f"Verified! Age band: {session.checks.age.gate}+")

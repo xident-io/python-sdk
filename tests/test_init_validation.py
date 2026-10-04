@@ -33,6 +33,7 @@ API_MIN_AGE_MESSAGE = (
 API_MISSING_USER_ID_MESSAGE = (
     "user_id is required: pass your own identifier for the person being verified"
 )
+API_INVALID_PURPOSE_MESSAGE = "purpose must be 'age_verification' or 'id_verification'"
 API_ID_FACIAL_MESSAGE = (
     "verification_mode facial cannot be combined with purpose id_verification, "
     "which always requires a document"
@@ -234,6 +235,54 @@ class TestIdVerification:
             "purpose": "id_verification",
             "verification_mode": verification_mode,
         }
+
+
+@pytest.mark.parametrize("mode", MODES)
+class TestPurpose:
+    @pytest.mark.parametrize("purpose", ["age", "ID_VERIFICATION", "kyc", " age_verification"])
+    def test_an_unknown_purpose_is_refused(self, mode: str, purpose: str) -> None:
+        _refused(
+            mode,
+            "INVALID_PURPOSE",
+            API_INVALID_PURPOSE_MESSAGE,
+            callback_url=CB,
+            user_id="user_42",
+            min_age=18,
+            purpose=purpose,
+        )
+
+    def test_the_purpose_is_checked_before_the_age(self, mode: str) -> None:
+        # The API checks purpose first, so an unknown purpose with an
+        # out-of-range age answers INVALID_PURPOSE, not INVALID_MIN_AGE.
+        _refused(
+            mode,
+            "INVALID_PURPOSE",
+            API_INVALID_PURPOSE_MESSAGE,
+            callback_url=CB,
+            user_id="user_42",
+            min_age=99,
+            purpose="adult",
+        )
+
+    def test_the_user_id_is_checked_before_the_purpose(self, mode: str) -> None:
+        _refused(
+            mode,
+            "MISSING_USER_ID",
+            API_MISSING_USER_ID_MESSAGE,
+            callback_url=CB,
+            user_id="",
+            min_age=18,
+            purpose="adult",
+        )
+
+    @pytest.mark.parametrize("purpose", ["", "age_verification"])
+    def test_the_default_purpose_is_accepted_and_sent_as_given(
+        self, mode: str, purpose: str
+    ) -> None:
+        sent, body = _init(mode, callback_url=CB, user_id="user_42", min_age=18, purpose=purpose)
+        assert sent == 1
+        assert body is not None
+        assert body["min_age"] == 18
 
 
 def test_api_refusal_still_surfaces_as_validation_error() -> None:

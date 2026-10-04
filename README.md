@@ -160,8 +160,11 @@ URL: anyone can edit a URL. Grant access only when both hold:
   their Xident ID (`verification_type` `xident_id`) gets a verified result
   with the band, but no new age check ran in that session.
 
-A result from a test key carries `test: true` on the wire and is never a real
-verification; production code must refuse it.
+A result from a test key carries `test: true` (`session.test`): the session
+settled at once with no real check, yet it is verified and carries the band.
+`proves_age()` refuses it. In local development with a test key you can opt in
+with `session.proves_age(REQUIRED_MIN_AGE, allow_test=True)`; never do that in
+production code.
 
 ### Get Verification Result
 
@@ -173,7 +176,8 @@ session.is_failed()      # True if verification failed
 session.is_pending()     # True if still in progress
 session.is_terminal()    # True if no more changes possible
 
-session.proves_age(21)   # True only if verified AND checks.age.gate >= 21; False for id_verification
+session.proves_age(21)   # True only if verified, not a test-key result, AND checks.age.gate >= 21
+session.test             # True for a test-key result: it grants nothing
 session.external_user_id # the user_id your backend sent to init: compare it with your user
 session.age_bracket()    # 18 when checks.age.passed, else None; None for id_verification and for an
                          # Xident ID reuse (no new age check ran): decide with proves_age()
