@@ -77,11 +77,11 @@ def verification_callback():
     if result.external_user_id != current_user_id():
         return jsonify({"error": "This verification belongs to another user"}), 403
 
-    # Success, the age check passed, and its band covers REQUIRED_MIN_AGE. An
+    # Verified, and its age band covers REQUIRED_MIN_AGE. An
     # ID verification result (no age band) or an 18+ result at a 21+ site is
     # not enough.
     if result.proves_age(REQUIRED_MIN_AGE):
-        return jsonify({"status": "verified", "age_bracket": result.age_bracket()})
+        return jsonify({"status": "verified", "age_bracket": result.checks.age.gate})
     return jsonify({"status": "failed"}), 403
 
 

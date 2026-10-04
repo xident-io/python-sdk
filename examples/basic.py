@@ -69,9 +69,9 @@ try:
         # person's callback. Never grant anything on it.
         print("This result belongs to another user")
     elif session.proves_age(REQUIRED_MIN_AGE):
-        # Success, the age check passed, and its band covers your age. An ID
+        # Verified, and its age band covers your age. An ID
         # verification (no age band) or an 18+ result at a 21+ site is False.
-        print(f"Verified! Age bracket: {session.age_bracket()}+")
+        print(f"Verified! Age band: {session.checks.age.gate}+")
         print(f"Method: {session.method()}")  # "full", "age_check", "xident_id", ...
         if session.checks.document.performed:
             print(f"Document country: {session.checks.document.country}")

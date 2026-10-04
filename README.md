@@ -26,7 +26,7 @@ REQUIRED_MIN_AGE = 18  # the age YOUR site requires, decided on the server
 # Create an init token (server side only, with your secret key)
 result = client.verification.init(
     callback_url="https://example.com/callback",
-    user_id=current_user.id,    # required: your own id for the signed-in person
+    user_id=str(current_user.id),  # required, a string: your own id for the signed-in person
     min_age=REQUIRED_MIN_AGE,   # 12 to 25, rounded up to the next band
 )
 print(result.verify_url)  # Redirect user here
@@ -34,15 +34,20 @@ print(result.verify_url)  # Redirect user here
 # On your callback: read the xtk_ token from the URL, then decide server-side
 session = client.verification.get_result(token_from_callback)
 if (
-    session.external_user_id == current_user.id   # the result is this user's
-    and session.proves_age(REQUIRED_MIN_AGE)      # and proves the age you need
+    session.external_user_id == str(current_user.id)  # the result is this user's
+    and session.proves_age(REQUIRED_MIN_AGE)         # and proves the age you need
 ):
-    print(f"Verified! Age: {session.age_bracket()}+")
+    print(f"Verified! Age band: {session.checks.age.gate}+")
 ```
 
 Check both: a success can belong to somebody else (a token copied from
 another person's callback), and a success can prove a lower age (an 18+
 result at a 21+ site) or no age at all (an ID verification).
+
+`user_id` is a string on the wire. If your user ids are numbers, convert them
+with `str()` both when you send them and when you compare
+`external_user_id`, or the comparison `"42" == 42` refuses a real
+verification.
 
 > **v2.0.0 changed the shape of the verification result.** See
 > [v2 breaking changes](#v2-breaking-changes) below before upgrading.
@@ -148,9 +153,15 @@ URL: anyone can edit a URL. Grant access only when both hold:
 
 - `session.external_user_id` is the user your backend started the
   verification for (from your own session or login);
-- `session.proves_age(REQUIRED_MIN_AGE)`: the session passed, the age check
-  passed, and its band (`checks.age.gate`) is at least the age your backend
-  requires. An ID verification result has no band and proves no age.
+- `session.proves_age(REQUIRED_MIN_AGE)`: `verified` is true and the age band
+  (`checks.age.gate`) is present and at least the age your backend requires.
+  An ID verification result has no band and proves no age. It does not need
+  `checks.age.passed`: a returning user who reuses an age proven earlier on
+  their Xident ID (`verification_type` `xident_id`) gets a verified result
+  with the band, but no new age check ran in that session.
+
+A result from a test key carries `test: true` on the wire and is never a real
+verification; production code must refuse it.
 
 ### Get Verification Result
 
@@ -162,9 +173,10 @@ session.is_failed()      # True if verification failed
 session.is_pending()     # True if still in progress
 session.is_terminal()    # True if no more changes possible
 
-session.proves_age(21)   # True only if it passed AND checks.age.gate >= 21; False for id_verification
+session.proves_age(21)   # True only if verified AND checks.age.gate >= 21; False for id_verification
 session.external_user_id # the user_id your backend sent to init: compare it with your user
-session.age_bracket()    # 18 (verified age threshold) or None; always None for id_verification
+session.age_bracket()    # 18 when checks.age.passed, else None; None for id_verification and for an
+                         # Xident ID reuse (no new age check ran): decide with proves_age()
 session.method()         # "full" | "age_check" | "xident_id" | "eu_wallet"
 session.status           # SessionStatus.SUCCESS
 session.reason           # "" on success; e.g. "age_below_threshold" on failure
@@ -234,7 +246,7 @@ print(event["data"])  # the same result get_result() returns, as a dict
 # Apply the callback's rules to it before you grant anything:
 from xident import SessionResult
 result = SessionResult.from_dict(event["data"])
-if result.external_user_id == your_user_id and result.proves_age(REQUIRED_MIN_AGE):
+if result.external_user_id == str(your_user_id) and result.proves_age(REQUIRED_MIN_AGE):
     ...
 
 # Or verify signature only

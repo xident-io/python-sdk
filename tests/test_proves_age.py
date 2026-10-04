@@ -15,17 +15,30 @@ verification (``buildResultChecks`` in the API's
 ``internal/domain/services/session_result_view.go``: the age check is performed
 and passed from the document date of birth, and the gate is the session's
 ``min_age``, 0, omitted).
+
+``tenant_result_v1_xident_id_reuse.json`` is a passed Xident ID reuse (a
+returning user's age, proven earlier on their account, answers the session).
+It is built from the API code of api#45 at c2d6890: ``account_reuse.go``
+completes the session with kind ``xident_id`` and reason ``xident_id_reused``
+and records no evidence, so ``buildResultChecks`` reports every check
+``performed: false, passed: false`` and the age gate is the session's
+``min_age`` (21). It must prove the age: ``checks.age.passed`` is not part of
+the rule.
 """
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
+import time
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from xident import SessionResult
+from xident.resources.webhooks import Webhooks
 
 TESTDATA = Path(__file__).parent / "testdata"
 
@@ -37,6 +50,7 @@ def load(name: str) -> dict[str, Any]:
 
 AGE_21 = "tenant_result_v1.golden.json"
 ID_ONLY = "tenant_result_v1_id_no_gate.json"
+REUSE_21 = "tenant_result_v1_xident_id_reuse.json"
 
 
 class TestProvesAge:
@@ -70,9 +84,27 @@ class TestProvesAge:
         data["verified"] = False
         assert SessionResult.from_dict(data).proves_age(18) is False
 
-    def test_a_failed_age_check_proves_nothing(self) -> None:
-        data = load(AGE_21)
-        data["checks"]["age"]["passed"] = False
+    @pytest.mark.parametrize("min_age", [18, 21])
+    def test_an_xident_id_reuse_proves_its_gate(self, min_age: int) -> None:
+        result = SessionResult.from_dict(load(REUSE_21))
+        assert result.verification_type == "xident_id"
+        assert result.checks.age.performed is False  # no new evidence...
+        assert result.checks.age.passed is False
+        assert result.proves_age(min_age) is True  # ...and still a proven 21+
+
+    def test_an_xident_id_reuse_does_not_prove_a_higher_age(self) -> None:
+        assert SessionResult.from_dict(load(REUSE_21)).proves_age(25) is False
+
+    def test_the_document_golden_proves_18_and_21_but_not_25(self) -> None:
+        result = SessionResult.from_dict(load(AGE_21))
+        assert result.proves_age(18) is True
+        assert result.proves_age(21) is True
+        assert result.proves_age(25) is False
+
+    def test_verified_false_proves_nothing_even_with_a_gate(self) -> None:
+        # The rule reads the wire field ``verified``, not only the status.
+        data = load(REUSE_21)
+        data["verified"] = False
         assert SessionResult.from_dict(data).proves_age(18) is False
 
     def test_an_old_result_without_checks_proves_nothing(self) -> None:
@@ -87,3 +119,33 @@ class TestProvesAge:
         result = SessionResult.from_dict(load(AGE_21))
         with pytest.raises(ValueError, match="12 to 25"):
             result.proves_age(min_age)
+
+
+class TestProvesAgeFromWebhook:
+    """The same rule applied to a webhook: ``data`` is the same tenant result.
+
+    The envelope is the API's ``models.WebhookEventPayload`` (id, type,
+    api_version, created, data), signed the way the API signs it.
+    """
+
+    @pytest.mark.parametrize(
+        ("fixture", "expected"),
+        [(AGE_21, True), (REUSE_21, True), (ID_ONLY, False)],
+    )
+    def test_a_signed_session_success_webhook(self, fixture: str, expected: bool) -> None:
+        envelope = {
+            "id": "evt_0001",
+            "type": "session.success",
+            "api_version": "2026-08-13",
+            "created": 1785751350,
+            "data": load(fixture),
+        }
+        payload = json.dumps(envelope)
+        ts = int(time.time())
+        sig = hmac.new(b"whsec_test", f"{ts}.{payload}".encode(), hashlib.sha256).hexdigest()
+
+        event = Webhooks().construct_event(payload, f"t={ts},v1={sig}", "whsec_test")
+        result = SessionResult.from_dict(event["data"])
+
+        assert result.external_user_id == "cust-4711"
+        assert result.proves_age(21) is expected

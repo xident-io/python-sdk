@@ -82,12 +82,12 @@ def verification_callback(request: HttpRequest) -> HttpResponse:
     if session.external_user_id != str(request.user.pk):
         return JsonResponse({"error": "This verification belongs to another user"}, status=403)
 
-    # Success, the age check passed, and its band covers REQUIRED_MIN_AGE. An
+    # Verified, and its age band covers REQUIRED_MIN_AGE. An
     # ID verification result (no age band) or an 18+ result at a 21+ site is
     # not enough.
     if session.proves_age(REQUIRED_MIN_AGE):
         request.user.age_verified = True  # type: ignore[attr-defined]
-        request.user.age_bracket = session.age_bracket()  # type: ignore[attr-defined]
+        request.user.age_bracket = session.checks.age.gate  # type: ignore[attr-defined]
         request.user.save()  # type: ignore[attr-defined]
         return redirect("/verify/success/")
     return redirect("/verify/failed/")

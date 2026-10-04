@@ -89,13 +89,13 @@ async def verification_callback(request: Request, token: str):
     if result.external_user_id != current_user_id(request):
         return JSONResponse({"error": "This verification belongs to another user"}, status_code=403)
 
-    # Success, the age check passed, and its band covers REQUIRED_MIN_AGE. An
+    # Verified, and its age band covers REQUIRED_MIN_AGE. An
     # ID verification result (no age band) or an 18+ result at a 21+ site is
     # not enough.
     if result.proves_age(REQUIRED_MIN_AGE):
         return {
             "status": "verified",
-            "age_bracket": result.age_bracket(),
+            "age_bracket": result.checks.age.gate,
             "method": result.method(),  # "full", "age_check", "xident_id", ...
             "document_country": result.checks.document.country,
         }
