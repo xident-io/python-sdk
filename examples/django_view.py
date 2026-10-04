@@ -18,6 +18,7 @@ Usage in urls.py:
 import os
 
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.views.decorators.http import require_GET, require_POST
@@ -25,18 +26,26 @@ from django.views.decorators.http import require_GET, require_POST
 from xident import Xident, XidentError
 
 # Initialize once -- reuse across requests
-xident_client = Xident(api_key=getattr(settings, "XIDENT_SECRET_KEY", os.environ["XIDENT_SECRET_KEY"]))
+xident_client = Xident(
+    api_key=getattr(settings, "XIDENT_SECRET_KEY", os.environ["XIDENT_SECRET_KEY"])
+)
 
 
+@login_required
 @require_GET
 def start_verification(request: HttpRequest) -> HttpResponse:
-    """Start verification -- redirect user to Xident widget."""
+    """Start verification -- redirect user to Xident widget.
+
+    user_id is required on every init, so this view needs a signed-in user.
+    min_age is 12 to 25; Xident rounds it up to the next of 12, 15, 18, 21
+    or 25 (19 is enforced as 21).
+    """
     try:
         callback_url = request.build_absolute_uri("/verify/callback/")
         result = xident_client.verification.init(
             callback_url=callback_url,
+            user_id=str(request.user.pk),
             min_age=18,
-            user_id=str(request.user.pk) if request.user.is_authenticated else None,
             theme="system",
         )
         return redirect(result.verify_url)

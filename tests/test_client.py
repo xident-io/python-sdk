@@ -89,7 +89,9 @@ class TestXident:
             {"token": "xit_abc", "verify_url": "https://verify.xident.io?t=xit_abc"}
         )
         client = xident.Xident(api_key="sk_test_123", transport=mock_transport)
-        result = client.verification.init(callback_url="https://example.com/cb")
+        result = client.verification.init(
+            callback_url="https://example.com/cb", user_id="user_42", min_age=18
+        )
         assert result.token == "xit_abc"
         assert mock_transport.request_count == 1
 
@@ -160,6 +162,8 @@ class TestAsyncXident:
             {"token": "xit_abc", "verify_url": "https://verify.xident.io?t=xit_abc"}
         )
         client = xident.AsyncXident(api_key="sk_test_123", transport=transport)
-        result = await client.verification.init(callback_url="https://example.com/cb")
+        result = await client.verification.init(
+            callback_url="https://example.com/cb", user_id="user_42", min_age=18
+        )
         assert result.token == "xit_abc"
         assert transport.request_count == 1

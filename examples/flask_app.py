@@ -17,13 +17,23 @@ app = Flask(__name__)
 xident_client = Xident(api_key=os.environ["XIDENT_SECRET_KEY"])
 
 
+def current_user_id() -> str:
+    """Your own identifier for the signed-in person.
+
+    Replace this with your session or auth lookup. Xident requires a user_id
+    on every init and returns it on the callback and in the result.
+    """
+    return "user_42"
+
+
 @app.route("/verify")
 def start_verification():
     """Start verification -- redirect user to Xident widget."""
     try:
         result = xident_client.verification.init(
             callback_url=request.url_root.rstrip("/") + "/verify/callback",
-            min_age=18,
+            user_id=current_user_id(),
+            min_age=18,  # 12 to 25, rounded up to the next band (19 is enforced as 21)
             theme="system",
         )
         return redirect(result.verify_url)

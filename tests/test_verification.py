@@ -16,7 +16,9 @@ class TestVerification:
         )
         client = xident.Xident(api_key="sk_test_123", transport=mock_transport)
 
-        result = client.verification.init(callback_url="https://example.com/callback")
+        result = client.verification.init(
+            callback_url="https://example.com/callback", user_id="user_42", min_age=18
+        )
 
         assert result.token == "xit_abc123"
         assert result.verify_url == "https://verify.xident.io?t=xit_abc123"
@@ -45,15 +47,18 @@ class TestVerification:
         mock_transport.queue_success({"token": "xit_x", "verify_url": "https://v.io"})
         client = xident.Xident(api_key="sk_test_123", transport=mock_transport)
 
-        client.verification.init(callback_url="https://example.com/cb")
+        client.verification.init(
+            callback_url="https://example.com/cb", user_id="user_42", min_age=18
+        )
 
         req = mock_transport.last_request
         assert req is not None
         body = json.loads(req.content)
-        assert "min_age" not in body
-        assert "user_id" not in body
-        assert "theme" not in body
-        assert body["callback_url"] == "https://example.com/cb"
+        assert body == {
+            "callback_url": "https://example.com/cb",
+            "user_id": "user_42",
+            "min_age": 18,
+        }
 
     def test_init_all_params(self, mock_transport: MockTransport) -> None:
         mock_transport.queue_success({"token": "xit_x", "verify_url": "https://v.io"})
@@ -88,6 +93,7 @@ class TestVerification:
 
         client.verification.init(
             callback_url="https://example.com/cb",
+            user_id="user_42",
             min_age=0,
             purpose="id_verification",
         )
@@ -105,6 +111,8 @@ class TestVerification:
 
         client.verification.init(
             callback_url="https://example.com/cb",
+            user_id="user_42",
+            min_age=18,
             verification_mode="document",
         )
 
@@ -119,6 +127,8 @@ class TestVerification:
 
         client.verification.init(
             callback_url="https://example.com/cb",
+            user_id="user_42",
+            min_age=18,
             liveness_difficulty="easy",
         )
 
@@ -133,7 +143,9 @@ class TestVerification:
         mock_transport.queue_success({"token": "xit_x", "verify_url": "https://v.io"})
         client = xident.Xident(api_key="sk_test_123", transport=mock_transport)
 
-        client.verification.init(callback_url="https://example.com/cb")
+        client.verification.init(
+            callback_url="https://example.com/cb", user_id="user_42", min_age=18
+        )
 
         req = mock_transport.last_request
         assert req is not None
@@ -188,7 +200,9 @@ class TestAsyncVerification:
         )
         client = xident.AsyncXident(api_key="sk_test_123", transport=transport)
 
-        result = await client.verification.init(callback_url="https://example.com/cb")
+        result = await client.verification.init(
+            callback_url="https://example.com/cb", user_id="user_42", min_age=18
+        )
 
         assert result.token == "xit_async"
         assert result.verify_url == "https://verify.xident.io?t=xit_async"
@@ -201,6 +215,8 @@ class TestAsyncVerification:
 
         await client.verification.init(
             callback_url="https://example.com/cb",
+            user_id="user_42",
+            min_age=18,
             verification_mode="document",
             liveness_difficulty="hard",
         )
@@ -243,6 +259,7 @@ class TestVerificationDataMatch:
 
         client.verification.init(
             callback_url="https://example.com/cb",
+            user_id="user_42",
             purpose="id_verification",
             expected={"first_name": "Jane", "date_of_birth": "1990-05-14", "nationality": "GB"},
             mismatch_policy="review",
@@ -262,7 +279,9 @@ class TestVerificationDataMatch:
         mock_transport.queue_success({"token": "xit_x", "verify_url": "https://v.io"})
         client = xident.Xident(api_key="sk_test_123", transport=mock_transport)
 
-        client.verification.init(callback_url="https://example.com/cb", min_age=18)
+        client.verification.init(
+            callback_url="https://example.com/cb", user_id="user_42", min_age=18
+        )
 
         req = mock_transport.last_request
         assert req is not None
@@ -271,12 +290,16 @@ class TestVerificationDataMatch:
         assert "mismatch_policy" not in body
 
     @pytest.mark.asyncio
-    async def test_async_init_sends_expected(self, async_mock_transport: AsyncMockTransport) -> None:
+    async def test_async_init_sends_expected(
+        self, async_mock_transport: AsyncMockTransport
+    ) -> None:
         async_mock_transport.queue_success({"token": "xit_dm", "verify_url": "https://v.io"})
         client = xident.AsyncXident(api_key="sk_test_123", transport=async_mock_transport)
 
         await client.verification.init(
             callback_url="https://example.com/cb",
+            user_id="user_42",
+            min_age=18,
             verification_mode="document",
             expected={"last_name": "Smith"},
         )

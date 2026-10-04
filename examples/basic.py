@@ -7,7 +7,9 @@ This shows the full verification flow:
 3. Handle callback and verify result using your SECRET key
 
 IMPORTANT: Use your SECRET key (sk_live_... or sk_test_...) for server-side SDK calls.
-The public key (pk_live_...) is for the JS SDK embedded in your frontend only.
+Only your backend may create a verification: the API refuses a public key (pk_...)
+with 403 SECRET_KEY_REQUIRED. Never put the secret key in a browser or a mobile
+app; the browser only opens the verify_url your backend gets back.
 
 Usage:
     XIDENT_SECRET_KEY=sk_test_xxx python examples/basic.py
@@ -32,8 +34,8 @@ client = Xident(api_key=secret_key)
 try:
     result = client.verification.init(
         callback_url="https://example.com/callback",
-        min_age=18,
-        user_id="demo_user_1",
+        user_id="demo_user_1",  # required: your own identifier for the person
+        min_age=18,  # 12 to 25, rounded up to the next band (19 is enforced as 21)
     )
     print(f"Init token: {result.token}")
     print(f"Verify URL: {result.verify_url}")

@@ -25,6 +25,15 @@ async def shutdown():
     await xident_client.aclose()
 
 
+def current_user_id() -> str:
+    """Your own identifier for the signed-in person.
+
+    Replace this with your session or auth lookup. Xident requires a user_id
+    on every init and returns it on the callback and in the result.
+    """
+    return "user_42"
+
+
 @app.get("/verify")
 async def start_verification(request: Request):
     """Start verification -- redirect user to Xident widget.
@@ -32,11 +41,13 @@ async def start_verification(request: Request):
     This pilot integration forces the document path: `verification_mode=
     "document"` skips the rule engine's on-device age-estimation option and
     always requires document + face match. Drop the argument (or pass
-    "auto") to let the rule engine choose.
+    "auto") to let the rule engine choose. min_age is 12 to 25; Xident rounds
+    it up to the next of 12, 15, 18, 21 or 25 (19 is enforced as 21).
     """
     try:
         result = await xident_client.verification.init(
             callback_url=str(request.url_for("verification_callback")),
+            user_id=current_user_id(),
             min_age=18,
             theme="system",
             verification_mode="document",
