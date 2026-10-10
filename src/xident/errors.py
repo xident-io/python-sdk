@@ -64,7 +64,14 @@ class AuthenticationError(APIError):
 
 
 class ValidationError(APIError):
-    """Raised when request parameters are invalid (HTTP 400)."""
+    """Raised when request parameters are invalid (HTTP 400).
+
+    ``verification.init()`` also raises it itself, before any request is
+    sent, for the settings the API would refuse (``MISSING_USER_ID``,
+    ``INVALID_MIN_AGE``, ``INVALID_VERIFICATION_MODE``). It then carries the
+    status code and error code the API would answer with, and ``request_id``
+    is None because no request was made.
+    """
 
 
 class NotFoundError(APIError):

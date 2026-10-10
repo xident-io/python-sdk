@@ -91,6 +91,19 @@ class TestConfig:
         config = Config(api_key="sk_test_abc123")
         assert config.api_key == "sk_test_abc123"
 
+    @pytest.mark.parametrize("key", ["ak_live_abc123", "ak_test_abc123"])
+    def test_accepts_agent_keys(self, key: str) -> None:
+        # The API accepts agent keys on /init (api#44); the SDK used to refuse
+        # them before sending anything.
+        assert Config(api_key=key).api_key == key
+
+    @pytest.mark.parametrize(
+        "key", ["ak_abc123", "ak_prod_abc", "sk_abc", "xat_abc", "AK_LIVE_abc"]
+    )
+    def test_rejects_other_prefixes(self, key: str) -> None:
+        with pytest.raises(ValueError, match="format"):
+            Config(api_key=key)
+
     def test_sdk_version_is_string(self) -> None:
         assert isinstance(SDK_VERSION, str)
         assert len(SDK_VERSION) > 0

@@ -12,7 +12,7 @@ Official Python SDK for [Xident](https://xident.io) age and identity verificatio
 pip install xident
 ```
 
-Requires Python 3.9+.
+Requires Python 3.10+.
 
 ## Quick Start
 
@@ -21,18 +21,33 @@ from xident import Xident
 
 client = Xident(api_key="sk_live_...")
 
-# Create an init token
+REQUIRED_MIN_AGE = 18  # the age YOUR site requires, decided on the server
+
+# Create an init token (server side only, with your secret key)
 result = client.verification.init(
     callback_url="https://example.com/callback",
-    min_age=18,
+    user_id=str(current_user.id),  # required, a string: your own id for the signed-in person
+    min_age=REQUIRED_MIN_AGE,   # 12 to 25, rounded up to the next band
 )
 print(result.verify_url)  # Redirect user here
 
-# After callback, verify result server-side
-session = client.verification.get_result("xtk_abc123")
-if session.is_verified():
-    print(f"Verified! Age: {session.age_bracket()}+")
+# On your callback: read the xtk_ token from the URL, then decide server-side
+session = client.verification.get_result(token_from_callback)
+if (
+    session.external_user_id == str(current_user.id)  # the result is this user's
+    and session.proves_age(REQUIRED_MIN_AGE)         # and proves the age you need
+):
+    print(f"Verified! Age band: {session.checks.age.gate}+")
 ```
+
+Check both: a success can belong to somebody else (a token copied from
+another person's callback), and a success can prove a lower age (an 18+
+result at a 21+ site) or no age at all (an ID verification).
+
+`user_id` is a string on the wire. If your user ids are numbers, convert them
+with `str()` both when you send them and when you compare
+`external_user_id`, or the comparison `"42" == 42` refuses a real
+verification.
 
 > **v2.0.0 changed the shape of the verification result.** See
 > [v2 breaking changes](#v2-breaking-changes) below before upgrading.
@@ -46,6 +61,7 @@ client = AsyncXident(api_key="sk_live_...")
 
 result = await client.verification.init(
     callback_url="https://example.com/callback",
+    user_id="user_42",
     min_age=18,
 )
 
@@ -56,7 +72,7 @@ session = await client.verification.get_result("xtk_abc123")
 
 ```python
 client = Xident(
-    api_key="sk_live_...",       # Required: secret API key
+    api_key="sk_live_...",       # Required: sk_live_, sk_test_, ak_live_ or ak_test_
     base_url="https://...",      # Override API URL
     timeout=30,                  # Request timeout (seconds)
     max_retries=3,               # Retry on 5xx errors
@@ -71,8 +87,8 @@ client = Xident(
 ```python
 result = client.verification.init(
     callback_url="https://example.com/callback",  # Required
-    min_age=18,              # Age threshold 1-99 (0-99 when purpose="id_verification")
-    user_id="user_42",       # Your user identifier
+    user_id="user_42",       # Required: your own identifier for the person
+    min_age=18,              # Required for age_verification: 12 to 25 (see below)
     theme="dark",            # Widget theme (light, dark, system)
     locale="de",             # Widget locale
     metadata="custom_data",  # Opaque metadata string
@@ -92,12 +108,63 @@ print(result.verify_url)  # Full URL to redirect user to
 insists the proof be a document instead of letting the rule engine pick
 on-device age estimation.
 
+**Rules for `init()`.** Every setting of the session comes from this call,
+which only your backend can make:
+
+- **Server key only.** `init` needs a server key: a secret key (`sk_live_`,
+  `sk_test_`) or an agent key (`ak_live_`, `ak_test_`). A public key (`pk_`)
+  gets 403 `SECRET_KEY_REQUIRED`, and this client refuses one when it is built.
+  Never put a server key in a browser or a mobile app.
+- **`user_id`** is required. Your own identifier for the person being
+  verified. It comes back on the callback and in the result.
+- **`min_age`** is required for `age_verification`: a whole number from 12 to
+  25. Xident rounds it up to the next of 12, 15, 18, 21 or 25 and enforces that
+  band, so 19 is enforced as 21. The SDK sends the value as given.
+- **`id_verification`** takes no `min_age` (leave it out, or pass 0). It always
+  needs a document and a face match, so `verification_mode="facial"` cannot be
+  combined with it.
+
+The SDK checks these rules before it sends anything and raises
+`ValidationError` with the same error code and message the API would answer
+with (`request_id` is then `None`):
+
+| `error_code` | When |
+|---|---|
+| `MISSING_USER_ID` | `user_id` is `None`, empty or only spaces |
+| `INVALID_MIN_AGE` | `min_age` is missing or outside 12 to 25 for an age verification, or not 0 for an ID verification |
+| `INVALID_VERIFICATION_MODE` | `purpose="id_verification"` with `verification_mode="facial"` |
+
+The API checks the same rules again and has a few of its own, which reach you
+as `ValidationError` (400) too: `INVALID_LIVENESS_DIFFICULTY` (not `easy`,
+`medium` or `hard`) and `INVALID_USER_ID` (a `user_id` that looks like a
+Xident key). Reusing an `Idempotency-Key` with a different body gets 422
+`IDEMPOTENCY_KEY_MISMATCH`.
+
+To make a test session fail on purpose, use a test key and a `user_id` that
+ends in `+fail`.
+
 After verification the widget redirects the browser back to `callback_url` with
-query parameters: `status` (`success` | `failed` | `canceled` — the same three
+query parameters: `status` (`success` | `failed` | `canceled`, the same three
 words the result endpoint uses), `token` (the **result** token `xtk_...`, which
-is different from the init token `xit_...`), and `user_id` (if you supplied one).
+is different from the init token `xit_...`), and `user_id`.
 Always re-verify the result server-side with `get_result()` — never trust the
-callback query parameters alone.
+callback query parameters, and never take the user from the `user_id` in the
+URL: anyone can edit a URL. Grant access only when both hold:
+
+- `session.external_user_id` is the user your backend started the
+  verification for (from your own session or login);
+- `session.proves_age(REQUIRED_MIN_AGE)`: `verified` is true and the age band
+  (`checks.age.gate`) is present and at least the age your backend requires.
+  An ID verification result has no band and proves no age. It does not need
+  `checks.age.passed`: a returning user who reuses an age proven earlier on
+  their Xident ID (`verification_type` `xident_id`) gets a verified result
+  with the band, but no new age check ran in that session.
+
+A result from a test key carries `test: true` (`session.test`): the session
+settled at once with no real check, yet it is verified and carries the band.
+`proves_age()` refuses it. In local development with a test key you can opt in
+with `session.proves_age(REQUIRED_MIN_AGE, allow_test=True)`; never do that in
+production code.
 
 ### Get Verification Result
 
@@ -109,7 +176,11 @@ session.is_failed()      # True if verification failed
 session.is_pending()     # True if still in progress
 session.is_terminal()    # True if no more changes possible
 
-session.age_bracket()    # 18 (verified age threshold) or None
+session.proves_age(21)   # True only if verified, not a test-key result, AND checks.age.gate >= 21
+session.test             # True for a test-key result: it grants nothing
+session.external_user_id # the user_id your backend sent to init: compare it with your user
+session.age_bracket()    # the band proved (e.g. 21), by the same rule as proves_age(): verified, not a
+                         # test-key result, checks.age.gate present; None for id_verification
 session.method()         # "full" | "age_check" | "xident_id" | "eu_wallet"
 session.status           # SessionStatus.SUCCESS
 session.reason           # "" on success; e.g. "age_below_threshold" on failure
@@ -120,7 +191,7 @@ session.checks.liveness.performed   # bool
 session.checks.liveness.passed      # bool
 session.checks.age.performed        # bool
 session.checks.age.passed           # bool
-session.checks.age.gate             # 12 / 15 / 18 / 21 / 25, or None
+session.checks.age.gate             # 12 / 15 / 18 / 21 / 25, or None (None for id_verification)
 session.checks.document.performed   # bool
 session.checks.document.passed      # bool
 session.checks.document.document_type  # "passport", "drivers_license", or None
@@ -139,6 +210,7 @@ carries only verdicts, one per field you asked about.
 ```python
 result = client.verification.init(
     callback_url="https://example.com/callback",
+    user_id="user_42",
     purpose="id_verification",  # a data match needs a document
     expected={
         "first_name": "Jane",
@@ -173,7 +245,13 @@ event = client.webhooks.construct_event(
 )
 
 print(event["type"])  # "session.success"
-print(event["data"])  # Event payload dict
+print(event["data"])  # the same result get_result() returns, as a dict
+
+# Apply the callback's rules to it before you grant anything:
+from xident import SessionResult
+result = SessionResult.from_dict(event["data"])
+if result.external_user_id == str(your_user_id) and result.proves_age(REQUIRED_MIN_AGE):
+    ...
 
 # Or verify signature only
 client.webhooks.verify_signature(payload, signature, secret)
@@ -251,7 +329,9 @@ from xident import (
 )
 
 try:
-    result = client.verification.init(callback_url="...")
+    result = client.verification.init(callback_url="...", user_id="user_42", min_age=18)
+except ValidationError as e:
+    print(f"Bad parameter: {e.error_code}")  # e.g. INVALID_MIN_AGE
 except AuthenticationError as e:
     print(f"Bad API key: {e.error_code}")
 except RateLimitError as e:
@@ -267,11 +347,11 @@ except XidentError as e:
 ```python
 # Auto-close HTTP client
 with Xident(api_key="sk_live_...") as client:
-    result = client.verification.init(callback_url="...")
+    result = client.verification.init(callback_url="...", user_id="user_42", min_age=18)
 
 # Async
 async with AsyncXident(api_key="sk_live_...") as client:
-    result = await client.verification.init(callback_url="...")
+    result = await client.verification.init(callback_url="...", user_id="user_42", min_age=18)
 ```
 
 ## Framework Examples

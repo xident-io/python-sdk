@@ -18,6 +18,7 @@ Usage in urls.py:
 import os
 
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.views.decorators.http import require_GET, require_POST
@@ -25,18 +26,29 @@ from django.views.decorators.http import require_GET, require_POST
 from xident import Xident, XidentError
 
 # Initialize once -- reuse across requests
-xident_client = Xident(api_key=getattr(settings, "XIDENT_SECRET_KEY", os.environ["XIDENT_SECRET_KEY"]))
+xident_client = Xident(
+    api_key=getattr(settings, "XIDENT_SECRET_KEY", os.environ["XIDENT_SECRET_KEY"])
+)
+
+# The age YOUR site requires, decided here on the server and never taken from
+# the request. 12 to 25; Xident rounds it up to the next of 12, 15, 18, 21 or
+# 25 (19 is enforced as 21).
+REQUIRED_MIN_AGE = 18
 
 
+@login_required
 @require_GET
 def start_verification(request: HttpRequest) -> HttpResponse:
-    """Start verification -- redirect user to Xident widget."""
+    """Start verification -- redirect user to Xident widget.
+
+    user_id is required on every init, so this view needs a signed-in user.
+    """
     try:
         callback_url = request.build_absolute_uri("/verify/callback/")
         result = xident_client.verification.init(
             callback_url=callback_url,
-            min_age=18,
-            user_id=str(request.user.pk) if request.user.is_authenticated else None,
+            user_id=str(request.user.pk),
+            min_age=REQUIRED_MIN_AGE,
             theme="system",
         )
         return redirect(result.verify_url)
@@ -44,29 +56,41 @@ def start_verification(request: HttpRequest) -> HttpResponse:
         return JsonResponse({"error": "Failed to start verification"}, status=500)
 
 
+@login_required
 @require_GET
 def verification_callback(request: HttpRequest) -> HttpResponse:
-    """Handle callback -- verify result server-side."""
+    """Handle callback -- verify result server-side.
+
+    Decide only from the result the secret key reads, never from the
+    ``status`` or ``user_id`` in the URL: anyone can edit a URL. The result
+    must belong to the signed-in user, and must prove REQUIRED_MIN_AGE.
+    """
     token = request.GET.get("token")
     if not token:
         return JsonResponse({"error": "Missing token"}, status=400)
 
     try:
         session = xident_client.verification.get_result(token)
-
-        if session.is_verified():
-            # Store verification in your database
-            if request.user.is_authenticated:
-                request.user.age_verified = True  # type: ignore[attr-defined]
-                request.user.age_bracket = session.age_bracket()  # type: ignore[attr-defined]
-                request.user.save()  # type: ignore[attr-defined]
-            return redirect("/verify/success/")
-        elif session.is_failed():
-            return redirect("/verify/failed/")
-        else:
-            return JsonResponse({"status": "in_progress"}, status=202)
     except XidentError:
         return JsonResponse({"error": "Verification check failed"}, status=500)
+
+    if session.is_pending():
+        return JsonResponse({"status": "in_progress"}, status=202)
+
+    # A success that belongs to somebody else (a token copied from another
+    # person's callback) must not verify this account.
+    if session.external_user_id != str(request.user.pk):
+        return JsonResponse({"error": "This verification belongs to another user"}, status=403)
+
+    # Verified, and its age band covers REQUIRED_MIN_AGE. An
+    # ID verification result (no age band) or an 18+ result at a 21+ site is
+    # not enough.
+    if session.proves_age(REQUIRED_MIN_AGE):
+        request.user.age_verified = True  # type: ignore[attr-defined]
+        request.user.age_bracket = session.age_bracket()  # type: ignore[attr-defined]
+        request.user.save()  # type: ignore[attr-defined]
+        return redirect("/verify/success/")
+    return redirect("/verify/failed/")
 
 
 @require_POST
@@ -89,7 +113,10 @@ def webhook(request: HttpRequest) -> HttpResponse:
         # "session.completed" is the pre-July-2026 name; an endpoint
         # registered before then still receives it.
         if event["type"] in ("session.success", "session.completed"):
-            # Process completed verification
+            # event["data"] is the same result get_result() returns. Apply
+            # the callback's rules: match data["external_user_id"] to your
+            # user, and use SessionResult.from_dict(event["data"]).proves_age(
+            # REQUIRED_MIN_AGE) for the age.
             pass
         elif event["type"] == "session.failed":
             # Handle failed verification

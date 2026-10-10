@@ -325,13 +325,26 @@ class TestSessionResult:
             {
                 "token": "xtk_s",
                 "status": "success",
+                "verified": True,
                 "checks": {"age": {"performed": True, "passed": True, "gate": 21}},
             }
         )
         assert result.age_bracket() == 21
 
+    def test_age_bracket_none_when_not_verified(self) -> None:
+        """The same rule as proves_age: the band comes from a verified result.
+        A payload without ``verified`` (an old deployment) proves no band."""
+        result = SessionResult.from_dict(
+            {
+                "token": "xtk_s",
+                "status": "success",
+                "checks": {"age": {"performed": True, "passed": True, "gate": 21}},
+            }
+        )
+        assert result.age_bracket() is None
+
     def test_age_bracket_none_when_not_passed(self) -> None:
-        """A gate value present but the check failed -- must not leak the gate."""
+        """A gate value present but the session failed -- must not leak the gate."""
         result = SessionResult.from_dict(
             {
                 "token": "xtk_s",
@@ -344,6 +357,38 @@ class TestSessionResult:
     def test_age_bracket_none_when_not_performed(self) -> None:
         result = SessionResult.from_dict({"token": "xtk_s", "status": "pending"})
         assert result.age_bracket() is None
+
+    @pytest.mark.parametrize(
+        "age",
+        [
+            {"performed": False, "passed": False},
+            {"performed": True, "passed": True},
+        ],
+    )
+    def test_id_verification_result_has_no_gate(self, age: dict[str, bool]) -> None:
+        """From the 2026-10 release an id_verification session stores min_age 0,
+        so the API leaves ``checks.age.gate`` out of its result (omitempty).
+        The result must still parse, and the missing gate must stay None:
+        reading it as 0 would report an age bracket nobody verified."""
+        result = SessionResult.from_dict(
+            {
+                "token": "xtk_id",
+                "status": "success",
+                "verified": True,
+                "verification_type": "full",
+                "checks": {
+                    "liveness": {"performed": True, "passed": True},
+                    "age": age,
+                    "document": {"performed": True, "passed": True},
+                    "face_match": {"performed": True, "passed": True},
+                },
+            }
+        )
+        assert result.is_verified() is True
+        assert result.checks.age.gate is None
+        assert result.age_bracket() is None
+        assert result.checks.document.passed is True
+        assert result.checks.face_match.passed is True
 
     def test_method_returns_verification_type(self) -> None:
         result = SessionResult.from_dict(

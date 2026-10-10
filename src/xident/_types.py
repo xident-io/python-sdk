@@ -80,16 +80,28 @@ class SessionStatus(str, Enum):
         )
 
 
-class InitParams(TypedDict, total=False):
+class _InitParamsRequired(TypedDict):
+    """The keys every init call must carry. See :class:`InitParams`."""
+
+    callback_url: str
+    user_id: str
+
+
+class InitParams(_InitParamsRequired, total=False):
     """Parameters for creating an init token.
+
+    ``callback_url`` and ``user_id`` are required; every other key is optional.
 
     Attributes:
         callback_url: URL where user is redirected after verification (required).
-        min_age: Minimum age threshold (1-99). When ``purpose`` is
-            "id_verification", 0 is also accepted (identity-only, no age gate).
+        user_id: Required. Your own identifier for the person being verified.
+            It comes back on the callback and in the result.
+        min_age: Required for "age_verification": a whole number from 12 to
+            25. Xident rounds it up to the next of 12, 15, 18, 21 or 25 and
+            enforces that band, so 19 is enforced as 21. An
+            "id_verification" takes no min_age.
         success_url: Override redirect URL on success.
         failed_url: Override redirect URL on failure.
-        user_id: Your application's user identifier.
         theme: Widget theme ("light", "dark", "system").
         locale: Widget locale (e.g. "en", "de", "fr").
         metadata: Opaque string stored with the session.
@@ -99,16 +111,15 @@ class InitParams(TypedDict, total=False):
             face match, or "facial" to force on-device age estimation.
             Composes with ``min_age`` rather than replacing it -- "document"
             with ``min_age`` 21 still enforces 21, it just insists the proof
-            be a document.
+            be a document. "facial" cannot be combined with purpose
+            "id_verification", which always needs a document.
         liveness_difficulty: Overrides the number of liveness actions the
             widget requires: "easy", "medium", or "hard".
     """
 
-    callback_url: str
     min_age: int
     success_url: str
     failed_url: str
-    user_id: str
     theme: str
     locale: str
     metadata: str

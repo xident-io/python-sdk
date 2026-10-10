@@ -18,6 +18,11 @@ API_VERSION = "verify/v1"
 PINNED_API_VERSION. Naming these alike is how the verification_mode /
 verification_type confusion started."""
 
+# Every key the API accepts on the server routes (POST /verify/v1/init and the
+# rest): a secret key (sk_) or an agent key (ak_), live or test. A public key
+# (pk_) belongs in a browser and gets 403 SECRET_KEY_REQUIRED on /init.
+SERVER_KEY_PREFIXES = ("sk_live_", "sk_test_", "ak_live_", "ak_test_")
+
 PINNED_API_VERSION = "2026-08-13"
 """The dated API version this SDK release was built against, sent as
 X-API-Version on every request.
@@ -56,7 +61,8 @@ class Config:
     """Immutable SDK configuration.
 
     Attributes:
-        api_key: Your Xident secret API key (sk_live_xxx or sk_test_xxx).
+        api_key: Your Xident server key: a secret key (sk_live_xxx or sk_test_xxx)
+            or an agent key (ak_live_xxx or ak_test_xxx).
         base_url: API base URL (default: https://api.xident.io).
         timeout: Request timeout in seconds (default: 30).
         max_retries: Max retries on 5xx errors (default: 3).
@@ -81,11 +87,13 @@ class Config:
         if self.api_key.startswith("pk_"):
             raise ValueError(
                 "Public keys (pk_*) cannot be used with the server SDK. "
-                "Use your secret key (sk_live_* or sk_test_*)."
+                "Use your secret key (sk_live_* or sk_test_*) or an agent key "
+                "(ak_live_* or ak_test_*)."
             )
-        if not self.api_key.startswith("sk_live_") and not self.api_key.startswith("sk_test_"):
+        if not self.api_key.startswith(SERVER_KEY_PREFIXES):
             raise ValueError(
-                'Invalid API key format. Must start with "sk_live_" or "sk_test_".'
+                "Invalid API key format. Must start with "
+                '"sk_live_", "sk_test_", "ak_live_" or "ak_test_".'
             )
         # Strip trailing slash from base_url
         object.__setattr__(self, "base_url", self.base_url.rstrip("/"))
