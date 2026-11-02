@@ -53,9 +53,9 @@ class Blacklist:
 
         The server derives the face from the session and blacklists it --
         you never handle the image. Works on terminal DOCUMENT verification
-        sessions for 12 months after the session; the face embedding is
-        retained for that period and then permanently deleted. Asynchronous
-        -- the entry appears in ``list()`` once processed.
+        sessions while your data retention setting keeps the session's face
+        embedding (at most 12 months); after that it is permanently deleted.
+        Asynchronous -- the entry appears in ``list()`` once processed.
 
         A browser-only (Path A) session never captured a face and is
         rejected with ``SESSION_HAS_NO_FACE_DATA``; one past its retention
@@ -157,9 +157,9 @@ class AsyncBlacklist:
 
         The server derives the face from the session and blacklists it --
         you never handle the image. Works on terminal DOCUMENT verification
-        sessions for 12 months after the session; the face embedding is
-        retained for that period and then permanently deleted. Asynchronous
-        -- the entry appears in ``list()`` once processed.
+        sessions while your data retention setting keeps the session's face
+        embedding (at most 12 months); after that it is permanently deleted.
+        Asynchronous -- the entry appears in ``list()`` once processed.
 
         A browser-only (Path A) session never captured a face and is
         rejected with ``SESSION_HAS_NO_FACE_DATA``; one past its retention
